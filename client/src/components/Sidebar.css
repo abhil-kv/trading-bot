@@ -6,6 +6,13 @@
   display: flex;
   flex-direction: column;
   padding: 20px 14px;
+  transition: width 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+}
+
+.sidebar.is-closed {
+  width: 60px;
+  padding: 20px 8px;
 }
 
 .sidebar__brand {
@@ -13,17 +20,45 @@
   align-items: center;
   gap: 8px;
   padding: 6px 10px 22px;
+  position: relative;
+  white-space: nowrap;
 }
 
-.sidebar__brand-mark {
-  color: var(--accent);
-  font-size: 12px;
+.sidebar__connection-status {
+  position: absolute;
+  left: 0;
+  font-size: 10px;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+.sidebar__connection-status.is-connected {
+  color: #22c55e;
+}
+
+.sidebar__connection-status.is-disconnected {
+  color: #ef4444;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .sidebar__brand-name {
   font-weight: 600;
   font-size: 15px;
   letter-spacing: -0.01em;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar.is-closed .sidebar__brand-name {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar__nav {
@@ -42,6 +77,23 @@
   text-decoration: none;
   font-size: 14px;
   position: relative;
+  white-space: nowrap;
+}
+
+.sidebar.is-closed .sidebar__item {
+  justify-content: center;
+  padding: 9px 8px;
+}
+
+.sidebar__label {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar.is-closed .sidebar__label {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
 }
 
 .sidebar__item:hover:not(.is-disabled) {
@@ -84,6 +136,13 @@
   border: 1px solid var(--border);
   padding: 1px 5px;
   border-radius: 4px;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar.is-closed .sidebar__soon {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar__footer {
@@ -92,4 +151,13 @@
   color: var(--text-faint);
   padding: 10px;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar.is-closed .sidebar__footer {
+  opacity: 0;
+  pointer-events: none;
 }

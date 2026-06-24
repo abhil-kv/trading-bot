@@ -9,11 +9,11 @@ const NAV_ITEMS = [
   { to: '/app/settings', label: 'Settings', icon: '⚙', enabled: false },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = true, isConnected = false }) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'is-open' : 'is-closed'}`}>
       <div className="sidebar__brand">
-        <span className="sidebar__brand-mark">●</span>
+        <span className={`sidebar__connection-status ${isConnected ? 'is-connected' : 'is-disconnected'}`}>●</span>
         <span className="sidebar__brand-name">Trading Bot</span>
       </div>
 
@@ -24,14 +24,15 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               className={({ isActive }) => `sidebar__item ${isActive ? 'is-active' : ''}`}
+              title={!isOpen ? item.label : ''}
             >
               <span className="sidebar__icon">{item.icon}</span>
-              {item.label}
+              <span className="sidebar__label">{item.label}</span>
             </NavLink>
           ) : (
-            <div key={item.to} className="sidebar__item is-disabled" title="Coming soon">
+            <div key={item.to} className="sidebar__item is-disabled" title={!isOpen ? item.label : 'Coming soon'}>
               <span className="sidebar__icon">{item.icon}</span>
-              {item.label}
+              <span className="sidebar__label">{item.label}</span>
               <span className="sidebar__soon">soon</span>
             </div>
           )

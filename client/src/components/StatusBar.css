@@ -9,6 +9,40 @@
   background: var(--bg);
 }
 
+.status-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-bar__hamburger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.status-bar__hamburger:hover {
+  background: var(--surface-hover);
+}
+
+.hamburger-line {
+  width: 18px;
+  height: 2px;
+  background: var(--text-dim);
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.status-bar__hamburger:hover .hamburger-line {
+  background: var(--text);
+}
+
 .status-bar__connection {
   font-size: 13px;
   color: var(--text-dim);
