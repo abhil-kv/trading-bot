@@ -2,6 +2,18 @@
 node_modules/
 package-lock.json
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+
 # Environment variables
 .env
 .env.local
@@ -42,3 +54,6 @@ coverage/
 # Temporary files
 *.tmp
 .temp/
+
+# Server data
+server/instrument_master.json

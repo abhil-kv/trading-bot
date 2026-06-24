@@ -1,0 +1,67 @@
+"""
+Nifty 50 constituents list
+NSE Indices rebalances this list semi-annually (effective last trading day of March & September)
+"""
+
+NIFTY50 = [
+    {"symbol": "ADANIENT", "name": "Adani Enterprises"},
+    {"symbol": "ADANIPORTS", "name": "Adani Ports & SEZ"},
+    {"symbol": "APOLLOHOSP", "name": "Apollo Hospitals"},
+    {"symbol": "ASIANPAINT", "name": "Asian Paints"},
+    {"symbol": "AXISBANK", "name": "Axis Bank"},
+    {"symbol": "BAJAJ-AUTO", "name": "Bajaj Auto"},
+    {"symbol": "BAJFINANCE", "name": "Bajaj Finance"},
+    {"symbol": "BAJAJFINSV", "name": "Bajaj Finserv"},
+    {"symbol": "BEL", "name": "Bharat Electronics"},
+    {"symbol": "BHARTIARTL", "name": "Bharti Airtel"},
+    {"symbol": "CIPLA", "name": "Cipla"},
+    {"symbol": "COALINDIA", "name": "Coal India"},
+    {"symbol": "DRREDDY", "name": "Dr. Reddy's Laboratories"},
+    {"symbol": "EICHERMOT", "name": "Eicher Motors"},
+    {"symbol": "ETERNAL", "name": "Eternal"},
+    {"symbol": "GRASIM", "name": "Grasim Industries"},
+    {"symbol": "HCLTECH", "name": "HCLTech"},
+    {"symbol": "HDFCBANK", "name": "HDFC Bank"},
+    {"symbol": "HDFCLIFE", "name": "HDFC Life"},
+    {"symbol": "HINDALCO", "name": "Hindalco Industries"},
+    {"symbol": "HINDUNILVR", "name": "Hindustan Unilever"},
+    {"symbol": "ICICIBANK", "name": "ICICI Bank"},
+    {"symbol": "INDIGO", "name": "IndiGo (InterGlobe Aviation)"},
+    {"symbol": "INFY", "name": "Infosys"},
+    {"symbol": "ITC", "name": "ITC"},
+    {"symbol": "JIOFIN", "name": "Jio Financial Services"},
+    {"symbol": "JSWSTEEL", "name": "JSW Steel"},
+    {"symbol": "KOTAKBANK", "name": "Kotak Mahindra Bank"},
+    {"symbol": "LT", "name": "Larsen & Toubro"},
+    {"symbol": "M&M", "name": "Mahindra & Mahindra"},
+    {"symbol": "MARUTI", "name": "Maruti Suzuki"},
+    {"symbol": "MAXHEALTH", "name": "Max Healthcare"},
+    {"symbol": "NESTLEIND", "name": "Nestle India"},
+    {"symbol": "NTPC", "name": "NTPC"},
+    {"symbol": "ONGC", "name": "Oil & Natural Gas Corporation"},
+    {"symbol": "POWERGRID", "name": "Power Grid Corporation"},
+    {"symbol": "RELIANCE", "name": "Reliance Industries"},
+    {"symbol": "SBILIFE", "name": "SBI Life Insurance"},
+    {"symbol": "SHRIRAMFIN", "name": "Shriram Finance"},
+    {"symbol": "SBIN", "name": "State Bank of India"},
+    {"symbol": "SUNPHARMA", "name": "Sun Pharmaceutical Industries"},
+    {"symbol": "TCS", "name": "Tata Consultancy Services"},
+    {"symbol": "TATACONSUM", "name": "Tata Consumer Products"},
+    {"symbol": "TMPV", "name": "Tata Motors Passenger Vehicles"},
+    {"symbol": "TATASTEEL", "name": "Tata Steel"},
+    {"symbol": "TECHM", "name": "Tech Mahindra"},
+    {"symbol": "TITAN", "name": "Titan Company"},
+    {"symbol": "TRENT", "name": "Trent"},
+    {"symbol": "ULTRACEMCO", "name": "UltraTech Cement"},
+    {"symbol": "WIPRO", "name": "Wipro"},
+]
+
+# Index symbols to fetch
+INDICES = [
+    {"symbol": "NIFTY", "name": "NIFTY 50", "tradingSymbol": "Nifty 50"},
+    {"symbol": "BANKNIFTY", "name": "BANK NIFTY", "tradingSymbol": "Nifty Bank"},
+    {"symbol": "FINNIFTY", "name": "FIN NIFTY", "tradingSymbol": "Nifty Fin Service"},
+    {"symbol": "SENSEX", "name": "SENSEX", "tradingSymbol": "BSE Sensex"},
+]
+
+# Made with Bob

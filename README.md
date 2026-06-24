@@ -1,16 +1,18 @@
-# Trading Bot — Step 1: Nifty 50 Home Grid
+# Trading Bot — Full-Featured Trading Platform
 
-A first slice of a trading bot built on **Express** (API) + **React** (UI), wired to
-**Angel One's SmartAPI**. This step covers:
+A comprehensive trading bot built with **Python/FastAPI** (API) + **React** (UI), integrated with **Angel One's SmartAPI** and **Marketaux News API**.
 
-- A login page that connects your Angel One SmartAPI credentials.
-- A **Home** tab (left nav) showing all 50 Nifty 50 constituents in a live grid:
-  title, today's gain/loss, % change, and 52-week high/low, with a visual
-  range bar showing where the current price sits inside its 52-week band.
+## ✨ Features
 
-It's intentionally scoped to *read-only market data* so you can verify the
-Angel One connection works before building order placement / strategies on
-top of it.
+- 🔐 **Authentication** - Secure login with Angel One SmartAPI credentials
+- 📊 **Live Market Data** - Real-time Nifty 50 stock quotes via WebSocket
+- 📰 **Market News** - Financial news from Marketaux API with advanced filters
+- 📈 **Index Cards** - NIFTY 50, BANK NIFTY, FIN NIFTY, SENSEX indicators
+- 🎯 **Strategies Tab** - Toggle between Stocks and Options strategies
+- 🔄 **Auto-Refresh** - WebSocket updates every 3 seconds
+- 🎨 **Modern UI** - Collapsible sidebar with connection status indicator
+- 🔗 **TradingView Integration** - Click stocks to open charts
+- 📚 **Auto API Docs** - Interactive Swagger UI at `/docs`
 
 ## How Angel One login actually works (read this before using the form)
 
@@ -31,41 +33,88 @@ type in a fresh OTP every time its session expires. By storing the secret
 generate a valid 6-digit code on demand, the same way an authenticator app
 does.
 
-## Project layout
+## 🏗️ Project Structure
 
 ```
 trading-bot/
-├── server/      Express API — talks to Angel One, never exposes tokens to the browser
-└── client/      React (Vite) UI — login page + dashboard with left nav
+├── server/             Python/FastAPI API
+│   ├── app.py         Main application
+│   ├── config.py      Configuration
+│   ├── routes/        API routes
+│   ├── services/      Business logic
+│   ├── middleware/    Authentication
+│   ├── utils/         Utilities
+│   └── data/          Nifty 50 data
+├── client/            React (Vite) UI
+├── start-server.sh    Server startup script
+├── start-client.sh    Client startup script
+└── start-all.sh       Start both in separate terminals
 ```
 
-## Running it
+## 🚀 Quick Start
 
-### 1. Backend
+### Automatic Setup (Recommended)
+
+```bash
+# Start both server and client in separate terminals
+./start-all.sh
+```
+
+This will:
+1. Check for Python 3.12/3.11
+2. Create virtual environment
+3. Install dependencies
+4. Start Python server on port 4000
+5. Start React client on port 5173
+
+### Manual Setup
+
+#### Python Server
 
 ```bash
 cd server
-cp .env.example .env     # edit if you want a different port/origin
-npm install
-npm run dev               # http://localhost:4000
+python3.12 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env      # Edit with your credentials
+python app.py             # http://localhost:4000
 ```
 
-### 2. Frontend
+Or use the startup script:
+```bash
+./start-server.sh
+```
+
+#### React Client
 
 ```bash
 cd client
-cp .env.example .env
 npm install
+cp .env.example .env
 npm run dev               # http://localhost:5173
 ```
 
-Open `http://localhost:5173`, fill in the login form, and you should land on
-the Home tab with the Nifty 50 grid. The grid auto-refreshes every 15
-seconds; it also supports filtering by symbol/name and sorting any numeric
-column by clicking its header.
+Or use the startup script:
+```bash
+./start-client.sh
+```
 
-> Market data only moves during NSE trading hours (9:15–15:30 IST). Outside
-> that window you'll correctly see the last close, flat change.
+## 🌐 Access the Application
+
+Open `http://localhost:5173` in your browser, login with your Angel One credentials, and explore:
+
+- **Home** - Live Nifty 50 stock grid with real-time updates
+- **News** - Market news with advanced filters (country, language, date)
+- **Strategies** - Toggle between Stocks and Options strategies
+- **Orders** - Coming soon
+- **Positions** - Coming soon
+- **Settings** - Coming soon
+
+> 💡 Market data only updates during NSE trading hours (9:15–15:30 IST)
+
+### API Documentation
+
+Visit `http://localhost:4000/docs` for interactive Swagger UI documentation!
 
 ## How the data flows
 
@@ -92,10 +141,10 @@ This is a personal, local-first tool. A few choices were made for simplicity
 that you should harden before exposing it beyond `localhost`:
 
 - Credentials (PIN, TOTP secret, API key/secret) are kept **only** in the
-  Express session, in server memory, for the lifetime of that browser
+  server session, in server memory, for the lifetime of that browser
   session. They're not written to disk or a database. Restarting the server
   logs you out.
-- Sessions use Express's in-memory store, fine for one user / one process.
+- Sessions use FastAPI's in-memory store, fine for one user / one process.
   For multiple users or a long-running deployment, swap in a real session
   store (Redis, etc.) and consider encrypting credentials at rest.
 - Always run this behind HTTPS in anything beyond local development, and set
@@ -103,13 +152,74 @@ that you should harden before exposing it beyond `localhost`:
 - Treat the API key/secret and TOTP secret like passwords — anyone with them
   can log in as you.
 
-## What's next (left nav already has stubs for these)
+## 📚 Documentation
 
-The sidebar already lists **Orders**, **Positions**, **Strategies**, and
-**Settings** as "coming soon" — natural next steps once you're ready to move
-from read-only data to actually placing and managing trades:
+- **Server README**: See `server/README.md` for detailed Python setup
+- **Installation Guide**: See `server/INSTALL.md` for troubleshooting
+- **API Docs**: Visit `http://localhost:4000/docs` when server is running
 
-- WebSocket live ticks (Angel One's `SmartWebSocketV2`) instead of polling.
-- Order placement endpoints + an Orders tab.
-- A simple strategy engine (rules → signals → orders) feeding off this same
-  quote pipeline.
+## 🛠️ Technology Stack
+
+### Backend
+- **FastAPI** - Modern async web framework
+- **Uvicorn** - ASGI server
+- **httpx** - Async HTTP client
+- **pyotp** - TOTP generation
+- **Pydantic v2** - Data validation
+
+### Frontend
+- **React 18** - UI library
+- **Vite** - Build tool
+- **React Router** - Navigation
+
+### APIs
+- **Angel One SmartAPI** - Market data and trading
+- **Marketaux API** - Financial news
+
+## 🔐 Security Notes
+
+- Credentials stored server-side only (never in browser)
+- Session-based authentication with httpOnly cookies
+- CORS configured for local development
+- For production: Enable HTTPS and set `COOKIE_SECURE=true`
+
+## 🐛 Troubleshooting
+
+### Port Already in Use
+```bash
+# Kill process on port 4000
+lsof -ti:4000 | xargs kill -9
+```
+
+### Python Version Issues
+```bash
+# Install Python 3.12 (recommended)
+brew install python@3.12
+
+# Or use Python 3.11
+brew install python@3.11
+```
+
+### Python Module Errors
+```bash
+# Ensure virtual environment is activated
+source server/venv/bin/activate
+pip install -r server/requirements.txt
+```
+
+### WebSocket Connection Issues
+- Verify server is running on port 4000
+- Check CORS settings in server config
+- Ensure session cookie is being sent
+
+## 📝 License
+
+MIT License - See LICENSE file for details
+
+## 🤝 Contributing
+
+This is a personal trading bot project. Feel free to fork and customize for your needs.
+
+## ⚠️ Disclaimer
+
+This software is for educational purposes only. Trading involves risk. Always test thoroughly before using with real money.
