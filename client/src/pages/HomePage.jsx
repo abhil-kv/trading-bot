@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client.js';
 import StockGrid from '../components/StockGrid.jsx';
+import ConnectionStatus from '../components/ConnectionStatus.jsx';
+import { useWebSocket } from '../hooks/useWebSocket.js';
 import './HomePage.css';
-
-const POLL_INTERVAL_MS = 15000;
 
 function formatTime(iso) {
   if (!iso) return '—';
@@ -19,10 +19,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState([]);
-  const pollRef = useRef(null);
+  
+  // WebSocket connection
+  const { isConnected, lastMessage } = useWebSocket();
 
-  const fetchQuotes = useCallback(async ({ silent } = {}) => {
-    if (!silent) setLoading(true);
+  // Initial fetch on mount (fallback if WebSocket is not connected)
+  const fetchQuotes = useCallback(async () => {
+    setLoading(true);
     try {
       const { data } = await apiClient.get('/market/nifty50');
       setStocks(data.stocks || []);
@@ -43,11 +46,29 @@ export default function HomePage() {
     }
   }, [navigate]);
 
+  // Initial fetch on mount
   useEffect(() => {
     fetchQuotes();
-    pollRef.current = setInterval(() => fetchQuotes({ silent: true }), POLL_INTERVAL_MS);
-    return () => clearInterval(pollRef.current);
   }, [fetchQuotes]);
+
+  // Handle WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    if (lastMessage.type === 'market_update') {
+      const data = lastMessage.data;
+      setStocks(data.stocks || []);
+      setAsOf(data.asOf);
+      const w = [];
+      if (data.unresolvedSymbols?.length) w.push(`Could not resolve tokens for: ${data.unresolvedSymbols.join(', ')}`);
+      if (data.unfetched?.length) w.push(`${data.unfetched.length} symbol(s) returned no data from Angel One.`);
+      setWarnings(w);
+      setError('');
+      setLoading(false);
+    } else if (lastMessage.type === 'error') {
+      setError(lastMessage.message || 'WebSocket error occurred');
+    }
+  }, [lastMessage]);
 
   const gainers = stocks.filter((s) => (s.change ?? 0) >= 0).length;
   const losers = stocks.length - gainers;
@@ -66,9 +87,7 @@ export default function HomePage() {
           </div>
           <div className="home-page__refresh">
             <span className="mono">Updated {formatTime(asOf)}</span>
-            <button className="refresh-btn" onClick={() => fetchQuotes()} disabled={loading}>
-              {loading ? 'Refreshing…' : 'Refresh'}
-            </button>
+            <ConnectionStatus isConnected={isConnected} />
           </div>
         </div>
       </div>
