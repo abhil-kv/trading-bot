@@ -1,0 +1,13 @@
+{
+  "name": "trading-bot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "start": "concurrently \"npm start --prefix server\" \"npm run dev --prefix client\"",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
