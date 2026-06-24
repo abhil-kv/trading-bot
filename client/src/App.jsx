@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import DashboardLayout from './pages/DashboardLayout.jsx';
 import HomePage from './pages/HomePage.jsx';
+import NewsPage from './pages/NewsPage.jsx';
 
 function FullScreenLoader() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
         }
       >
         <Route path="home" element={<HomePage />} />
+        <Route path="news" element={<NewsPage />} />
         <Route index element={<Navigate to="home" replace />} />
       </Route>
       <Route path="*" element={<Navigate to={authenticated ? '/app/home' : '/login'} replace />} />

@@ -82,6 +82,22 @@
   color: var(--text-faint);
 }
 
+.stock-title-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.stock-title-link:hover {
+  opacity: 0.7;
+}
+
+.stock-title-link:hover .stock-title__symbol {
+  text-decoration: underline;
+  color: var(--accent);
+}
+
 .stock-title {
   display: flex;
   flex-direction: column;
@@ -92,6 +108,7 @@
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 13.5px;
+  transition: color 0.2s ease;
 }
 
 .stock-title__name {

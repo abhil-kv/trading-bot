@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
 import './StockGrid.css';
 
+// Function to generate TradingView URL for NSE stocks
+function getTradingViewUrl(symbol) {
+  // Remove -EQ suffix if present and format for TradingView
+  const cleanSymbol = symbol.replace('-EQ', '');
+  return `https://www.tradingview.com/chart/?symbol=NSE%3A${cleanSymbol}`;
+}
+
 const COLUMNS = [
   { key: 'title', label: 'Stock', sortKey: 'name' },
   { key: 'ltp', label: 'LTP', sortKey: 'ltp', align: 'right' },
@@ -111,10 +118,17 @@ export default function StockGrid({ stocks }) {
               <tr key={s.symbol} className={s.change >= 0 ? 'row-gain' : 'row-loss'}>
                 <td className="rank-col mono">{i + 1}</td>
                 <td>
-                  <div className="stock-title">
-                    <span className="stock-title__symbol">{s.symbol}</span>
-                    <span className="stock-title__name">{s.name}</span>
-                  </div>
+                  <a
+                    href={getTradingViewUrl(s.symbol)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="stock-title-link"
+                  >
+                    <div className="stock-title">
+                      <span className="stock-title__symbol">{s.symbol}</span>
+                      <span className="stock-title__name">{s.name}</span>
+                    </div>
+                  </a>
                 </td>
                 <td className="align-right mono">{formatNumber(s.ltp)}</td>
                 <td className="align-right">

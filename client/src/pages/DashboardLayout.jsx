@@ -15,9 +15,9 @@ export default function DashboardLayout() {
 
   return (
     <div className="dashboard">
-      <Sidebar isOpen={isSidebarOpen} isConnected={isConnected} />
+      <Sidebar isOpen={isSidebarOpen} isConnected={isConnected} onToggle={toggleSidebar} />
       <div className="dashboard__main">
-        <StatusBar onToggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+        <StatusBar />
         <div className="dashboard__content">
           <Outlet />
         </div>

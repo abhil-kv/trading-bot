@@ -7,6 +7,14 @@ const NIFTY50 = require('../data/nifty50');
 
 const MAX_TOKENS_PER_REQUEST = 50; // documented cap for the FULL/OHLC/LTP quote modes
 
+// Index symbols to fetch (these are the trading symbols on NSE)
+const INDICES = [
+  { symbol: 'NIFTY', name: 'NIFTY 50', tradingSymbol: 'Nifty 50' },
+  { symbol: 'BANKNIFTY', name: 'BANK NIFTY', tradingSymbol: 'Nifty Bank' },
+  { symbol: 'FINNIFTY', name: 'FIN NIFTY', tradingSymbol: 'Nifty Fin Service' },
+  { symbol: 'SENSEX', name: 'SENSEX', tradingSymbol: 'BSE Sensex' },
+];
+
 let cache = { at: 0, payload: null };
 
 function chunk(array, size) {

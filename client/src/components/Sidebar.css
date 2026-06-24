@@ -22,6 +22,7 @@
   padding: 6px 10px 22px;
   position: relative;
   white-space: nowrap;
+  justify-content: space-between;
 }
 
 .sidebar__connection-status {
@@ -59,6 +60,62 @@
 .sidebar.is-closed .sidebar__brand-name {
   opacity: 0;
   pointer-events: none;
+}
+
+.sidebar__toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  margin-left: auto;
+}
+
+.sidebar__toggle:hover {
+  background: var(--surface-hover);
+}
+
+.sidebar__close-icon {
+  font-size: 18px;
+  color: var(--text-dim);
+  transition: color 0.2s ease;
+  line-height: 1;
+}
+
+.sidebar__toggle:hover .sidebar__close-icon {
+  color: var(--text);
+}
+
+.sidebar__hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px;
+}
+
+.sidebar__hamburger-icon .hamburger-line {
+  width: 16px;
+  height: 2px;
+  background: var(--text-dim);
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.sidebar__toggle:hover .hamburger-line {
+  background: var(--text);
+}
+
+.sidebar__toggle--hamburger {
+  margin-left: 0;
+  padding: 6px;
+}
+
+.sidebar.is-closed .sidebar__brand {
+  justify-content: center;
 }
 
 .sidebar__nav {
@@ -147,17 +204,87 @@
 
 .sidebar__footer {
   margin-top: auto;
-  font-size: 11px;
-  color: var(--text-faint);
-  padding: 10px;
-  font-family: var(--font-mono);
-  white-space: nowrap;
-  overflow: hidden;
+  padding: 12px 0 0;
   opacity: 1;
   transition: opacity 0.3s ease;
+  overflow: hidden;
 }
 
 .sidebar.is-closed .sidebar__footer {
   opacity: 0;
   pointer-events: none;
+}
+
+.sidebar__indices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.index-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: background 0.2s ease;
+}
+
+.index-card:hover {
+  background: var(--surface-hover);
+}
+
+.index-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.index-card__name {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+.index-card__change {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.index-card__change.is-gain {
+  color: var(--gain);
+}
+
+.index-card__change.is-loss {
+  color: var(--loss);
+}
+
+.index-card__body {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.index-card__value {
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.index-card__delta {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.index-card__delta.is-gain {
+  color: var(--gain);
+}
+
+.index-card__delta.is-loss {
+  color: var(--loss);
 }

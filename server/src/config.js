@@ -1,4 +1,5 @@
 require('dotenv').config();
+// Restart trigger to load new env vars
 
 const developmentMode = process.env.DEVELOPMENT_MODE;
 const isDevelopment = developmentMode === 'development';
@@ -28,5 +29,10 @@ module.exports = {
     logoutPath: '/rest/secure/angelbroking/user/v1/logout',
     quotePath: '/rest/secure/angelbroking/market/v1/quote/',
     scripMasterUrl: 'https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json',
+  },
+
+  marketaux: {
+    apiKey: process.env.MARKETAUX_API_KEY || '',
+    baseUrl: 'https://api.marketaux.com/v1',
   },
 };

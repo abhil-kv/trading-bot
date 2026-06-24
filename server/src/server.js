@@ -7,6 +7,7 @@ const cookie = require('cookie');
 const config = require('./config');
 const authRoutes = require('./routes/auth.routes');
 const marketRoutes = require('./routes/market.routes');
+const newsRoutes = require('./routes/news.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -64,6 +65,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/news', newsRoutes);
 
 // Centralized error handler as a last resort
 app.use((err, req, res, next) => {
