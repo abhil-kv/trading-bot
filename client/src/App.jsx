@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import DashboardLayout from './pages/DashboardLayout.jsx';
 import HomePage from './pages/HomePage.jsx';
 import NewsPage from './pages/NewsPage.jsx';
+import StrategiesPage from './pages/StrategiesPage.jsx';
 
 function FullScreenLoader() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
       >
         <Route path="home" element={<HomePage />} />
         <Route path="news" element={<NewsPage />} />
+        <Route path="strategies" element={<StrategiesPage />} />
         <Route index element={<Navigate to="home" replace />} />
       </Route>
       <Route path="*" element={<Navigate to={authenticated ? '/app/home' : '/login'} replace />} />

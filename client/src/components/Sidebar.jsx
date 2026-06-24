@@ -4,9 +4,9 @@ import './Sidebar.css';
 const NAV_ITEMS = [
   { to: '/app/home', label: 'Home', icon: '◧', enabled: true },
   { to: '/app/news', label: 'News', icon: '📰', enabled: true },
+  { to: '/app/strategies', label: 'Strategies', icon: '◎', enabled: true },
   { to: '/app/orders', label: 'Orders', icon: '↗', enabled: false },
   { to: '/app/positions', label: 'Positions', icon: '▤', enabled: false },
-  { to: '/app/strategies', label: 'Strategies', icon: '◎', enabled: false },
   { to: '/app/settings', label: 'Settings', icon: '⚙', enabled: false },
 ];
 

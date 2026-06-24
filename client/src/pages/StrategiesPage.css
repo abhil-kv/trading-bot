@@ -1,0 +1,62 @@
+.strategies-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.strategies-toggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 8px;
+}
+
+.strategies-toggle__btn {
+  background: transparent;
+  border: none;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 7px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.strategies-toggle__btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.strategies-toggle__btn.is-active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.strategies-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  min-height: 400px;
+}
+
+.strategies-section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  color: var(--text);
+}
+
+.strategies-placeholder {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 60px 20px;
+  margin: 0;
+}
+
+/* Made with Bob */
