@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import './StockGrid.css';
 
 // Function to generate TradingView URL for NSE stocks
@@ -13,6 +13,9 @@ const COLUMNS = [
   { key: 'ltp', label: 'LTP', sortKey: 'ltp', align: 'right' },
   { key: 'change', label: 'Gain / Loss', sortKey: 'change', align: 'right' },
   { key: 'changePercent', label: 'Chg %', sortKey: 'changePercent', align: 'right' },
+  { key: 'orb_high', label: '15m Upper', sortKey: 'orb_high', align: 'right' },
+  { key: 'orb_low', label: '15m Lower', sortKey: 'orb_low', align: 'right' },
+  { key: 'orb_signal', label: '15m Range', align: 'center' },
   { key: 'range', label: '52W range', align: 'left' },
   { key: 'low52', label: '52W Low', sortKey: 'low52', align: 'right' },
   { key: 'high52', label: '52W High', sortKey: 'high52', align: 'right' },
@@ -50,9 +53,30 @@ function RangeBar({ low, high, ltp }) {
   );
 }
 
-export default function StockGrid({ stocks }) {
+function ORBSignalButton({ signal, breakoutTime, breakoutPrice }) {
+  if (!signal) {
+    return <span className="mono text-faint">—</span>;
+  }
+  
+  const isBuy = signal === 'BUY';
+  return (
+    <button
+      className={`orb-signal-btn ${isBuy ? 'orb-signal-btn--buy' : 'orb-signal-btn--sell'}`}
+      title={`Breakout at ${breakoutPrice?.toFixed(2)} (${breakoutTime})`}
+      disabled
+    >
+      {isBuy ? '🟢 BUY' : '🔴 SELL'}
+    </button>
+  );
+}
+
+export default function StockGrid({ stocks, indexType, onIndexTypeChange }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState({ key: 'changePercent', dir: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Set items per page based on index type
+  const itemsPerPage = indexType === '50' ? 50 : indexType === '100' ? 100 : 500;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -77,22 +101,50 @@ export default function StockGrid({ stocks }) {
     });
     return arr;
   }, [filtered, sort]);
-
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, sort, indexType, itemsPerPage]);
+  
+  // Paginate sorted results
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStocks = sorted.slice(startIndex, endIndex);
+  
   function handleSort(sortKey) {
     if (!sortKey) return;
     setSort((s) => (s.key === sortKey ? { key: sortKey, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: sortKey, dir: 'desc' }));
   }
-
+  
+  function handleIndexChange(e) {
+    onIndexTypeChange(e.target.value);
+  }
+  
   return (
     <div className="stock-grid">
       <div className="stock-grid__toolbar">
-        <input
-          className="stock-grid__search"
-          placeholder="Filter by symbol or name…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <span className="stock-grid__count">{sorted.length} of {stocks.length} stocks</span>
+        <div className="stock-grid__toolbar-left">
+          <input
+            className="stock-grid__search"
+            placeholder="Filter by symbol or name…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <select
+            className="stock-grid__dropdown"
+            value={indexType}
+            onChange={handleIndexChange}
+          >
+            <option value="50">Nifty 50</option>
+            <option value="100">Nifty 100</option>
+            <option value="500">Nifty 500</option>
+          </select>
+        </div>
+        <div className="stock-grid__toolbar-right">
+          <span className="stock-grid__count">{sorted.length} of {stocks.length} stocks</span>
+        </div>
       </div>
 
       <div className="stock-grid__table-wrap">
@@ -114,9 +166,9 @@ export default function StockGrid({ stocks }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((s, i) => (
+            {paginatedStocks.map((s, i) => (
               <tr key={s.symbol} className={s.change >= 0 ? 'row-gain' : 'row-loss'}>
-                <td className="rank-col mono">{i + 1}</td>
+                <td className="rank-col mono">{startIndex + i + 1}</td>
                 <td>
                   <a
                     href={getTradingViewUrl(s.symbol)}
@@ -137,6 +189,15 @@ export default function StockGrid({ stocks }) {
                 <td className="align-right mono">
                   {s.changePercent === null ? '—' : `${s.changePercent >= 0 ? '+' : ''}${s.changePercent.toFixed(2)}%`}
                 </td>
+                <td className="align-right mono">{formatNumber(s.orb_high)}</td>
+                <td className="align-right mono">{formatNumber(s.orb_low)}</td>
+                <td className="align-center">
+                  <ORBSignalButton
+                    signal={s.orb_signal}
+                    breakoutTime={s.orb_breakout_time}
+                    breakoutPrice={s.orb_breakout_price}
+                  />
+                </td>
                 <td>
                   <RangeBar low={s.low52} high={s.high52} ltp={s.ltp} />
                 </td>
@@ -144,16 +205,52 @@ export default function StockGrid({ stocks }) {
                 <td className="align-right mono text-faint">{formatNumber(s.high52)}</td>
               </tr>
             ))}
-            {sorted.length === 0 && (
+            {paginatedStocks.length === 0 && (
               <tr>
-                <td colSpan={8} className="empty-state">
-                  No stocks match “{query}”.
+                <td colSpan={11} className="empty-state">
+                  {sorted.length === 0 ? `No stocks match "${query}".` : 'No stocks on this page.'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="stock-grid__pagination">
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            First
+          </button>
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          <span className="pagination-info">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            Last
+          </button>
+        </div>
+      )}
     </div>
   );
 }

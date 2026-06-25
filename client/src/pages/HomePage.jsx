@@ -19,6 +19,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState([]);
+  const [indexType, setIndexType] = useState('50'); // '50', '100', or '500'
   
   // WebSocket connection
   const { isConnected, lastMessage } = useWebSocket();
@@ -27,7 +28,10 @@ export default function HomePage() {
   const fetchQuotes = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await apiClient.get('/market/nifty50');
+      const endpoint = indexType === '50' ? '/market/nifty50' :
+                       indexType === '100' ? '/market/nifty100' :
+                       '/market/nifty500';
+      const { data } = await apiClient.get(endpoint);
       setStocks(data.stocks || []);
       setAsOf(data.asOf);
       const w = [];
@@ -44,9 +48,9 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, indexType]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount and when index type changes
   useEffect(() => {
     fetchQuotes();
   }, [fetchQuotes]);
@@ -73,11 +77,15 @@ export default function HomePage() {
   const gainers = stocks.filter((s) => (s.change ?? 0) >= 0).length;
   const losers = stocks.length - gainers;
 
+  const indexName = indexType === '50' ? 'NIFTY 50' :
+                    indexType === '100' ? 'NIFTY 100' :
+                    'NIFTY 500';
+
   return (
     <div className="home-page">
       <div className="home-page__header">
         <div>
-          <h1>NIFTY 50</h1>
+          <h1>{indexName}</h1>
           <p className="home-page__sub">Live snapshot from Angel One SmartAPI</p>
         </div>
         <div className="home-page__meta">
@@ -100,7 +108,7 @@ export default function HomePage() {
       {loading && stocks.length === 0 ? (
         <div className="home-page__loading">Fetching live quotes…</div>
       ) : (
-        <StockGrid stocks={stocks} />
+        <StockGrid stocks={stocks} indexType={indexType} onIndexTypeChange={setIndexType} />
       )}
     </div>
   );

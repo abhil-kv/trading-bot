@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 
 from config import settings
-from routes import auth_routes, market_routes, news_routes
+from routes import auth_routes, market_routes, news_routes, strategy_routes
 from services.websocket_service import WebSocketService
 from middleware.require_auth import get_current_session
 
@@ -64,6 +64,7 @@ async def health_check():
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["auth"])
 app.include_router(market_routes.router, prefix="/api/market", tags=["market"])
 app.include_router(news_routes.router, prefix="/api/news", tags=["news"])
+app.include_router(strategy_routes.router, prefix="/api/strategies", tags=["strategies"])
 
 # WebSocket endpoint
 @app.websocket("/ws")

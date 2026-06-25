@@ -10,7 +10,10 @@ from config import settings
 from utils.angel_headers import build_angel_headers
 from services.angel_auth_service import angel_auth_service
 from services.instrument_master_service import instrument_master_service
+from services.orb_service import orb_service
 from data.nifty50 import NIFTY50
+from data.nifty100 import NIFTY100
+from data.nifty500 import NIFTY500
 
 MAX_TOKENS_PER_REQUEST = 50  # Angel One's documented limit
 
@@ -121,7 +124,7 @@ def shape_row(meta: Dict, raw: Dict) -> Dict:
     else:
         percent_change = None
     
-    return {
+    stock_data = {
         "symbol": meta["symbol"],
         "name": meta["name"],
         "tradingSymbol": raw.get("tradingSymbol", f"{meta['symbol']}-EQ"),
@@ -137,33 +140,58 @@ def shape_row(meta: Dict, raw: Dict) -> Dict:
         "volume": to_number(raw.get("tradeVolume")),
         "exchFeedTime": raw.get("exchFeedTime"),
     }
+    
+    # Update ORB tracker with this stock's data
+    orb_service.update_stock(meta["symbol"], stock_data)
+    
+    # Get ORB data and add to stock data
+    orb_data = orb_service.get_orb_data(meta["symbol"])
+    if orb_data:
+        stock_data["orb_high"] = orb_data.get("orb_high")
+        stock_data["orb_low"] = orb_data.get("orb_low")
+        stock_data["orb_signal"] = orb_data.get("signal")
+        stock_data["orb_breakout_time"] = orb_data.get("breakout_time")
+        stock_data["orb_breakout_price"] = orb_data.get("breakout_price")
+    else:
+        stock_data["orb_high"] = None
+        stock_data["orb_low"] = None
+        stock_data["orb_signal"] = None
+        stock_data["orb_breakout_time"] = None
+        stock_data["orb_breakout_price"] = None
+    
+    return stock_data
 
 
-async def get_nifty50_quotes(session_angel: Dict) -> Dict:
+async def get_quotes_for_stocks(session_angel: Dict, stock_list: List[Dict], cache_key: str = "default") -> Dict:
     """
-    Get quotes for all Nifty 50 stocks.
+    Get quotes for a list of stocks.
     Results are cached briefly to avoid excessive API calls.
     
     Args:
         session_angel: Session data with credentials and tokens
+        stock_list: List of stock dictionaries with symbol and name
+        cache_key: Key for caching (e.g., 'nifty50', 'nifty100', 'nifty500')
         
     Returns:
         Dictionary with stocks, asOf, unresolvedSymbols, and unfetched
     """
     global _cache
     
-    # Check cache
-    if _cache["payload"] and _cache["at"]:
-        cache_age = datetime.now() - _cache["at"]
+    # Check cache with cache_key
+    cache_entry_key = f"{cache_key}_payload"
+    cache_time_key = f"{cache_key}_at"
+    
+    if _cache.get(cache_entry_key) and _cache.get(cache_time_key):
+        cache_age = datetime.now() - _cache[cache_time_key]
         ttl = timedelta(milliseconds=settings.QUOTE_CACHE_TTL_MS)
         if cache_age < ttl:
-            return _cache["payload"]
+            return _cache[cache_entry_key]
     
     # Get token map
     token_map = await instrument_master_service.get_token_map()
     
     # Filter resolvable symbols
-    resolvable = [stock for stock in NIFTY50 if stock["symbol"] in token_map]
+    resolvable = [stock for stock in stock_list if stock["symbol"] in token_map]
     token_to_meta = {token_map[stock["symbol"]]["token"]: stock for stock in resolvable}
     tokens = [token_map[stock["symbol"]]["token"] for stock in resolvable]
     
@@ -188,19 +216,35 @@ async def get_nifty50_quotes(session_angel: Dict) -> Dict:
     
     # Maintain original order
     by_symbol = {row["symbol"]: row for row in fetched_rows}
-    stocks = [by_symbol[stock["symbol"]] for stock in NIFTY50 if stock["symbol"] in by_symbol]
+    stocks = [by_symbol[stock["symbol"]] for stock in stock_list if stock["symbol"] in by_symbol]
     
     payload = {
         "asOf": datetime.utcnow().isoformat() + "Z",
         "stocks": stocks,
-        "unresolvedSymbols": [stock["symbol"] for stock in NIFTY50 if stock["symbol"] not in token_map],
+        "unresolvedSymbols": [stock["symbol"] for stock in stock_list if stock["symbol"] not in token_map],
         "unfetched": unfetched,
     }
     
     # Update cache
-    _cache = {"at": datetime.now(), "payload": payload}
+    _cache[cache_entry_key] = payload
+    _cache[cache_time_key] = datetime.now()
     
     return payload
+
+
+async def get_nifty50_quotes(session_angel: Dict) -> Dict:
+    """Get quotes for all Nifty 50 stocks."""
+    return await get_quotes_for_stocks(session_angel, NIFTY50, "nifty50")
+
+
+async def get_nifty100_quotes(session_angel: Dict) -> Dict:
+    """Get quotes for all Nifty 100 stocks."""
+    return await get_quotes_for_stocks(session_angel, NIFTY100, "nifty100")
+
+
+async def get_nifty500_quotes(session_angel: Dict) -> Dict:
+    """Get quotes for all Nifty 500 stocks."""
+    return await get_quotes_for_stocks(session_angel, NIFTY500, "nifty500")
 
 
 class MarketDataService:
@@ -210,6 +254,16 @@ class MarketDataService:
     async def get_nifty50_quotes(session_angel: Dict) -> Dict:
         """Get Nifty 50 quotes"""
         return await get_nifty50_quotes(session_angel)
+    
+    @staticmethod
+    async def get_nifty100_quotes(session_angel: Dict) -> Dict:
+        """Get Nifty 100 quotes"""
+        return await get_nifty100_quotes(session_angel)
+    
+    @staticmethod
+    async def get_nifty500_quotes(session_angel: Dict) -> Dict:
+        """Get Nifty 500 quotes"""
+        return await get_nifty500_quotes(session_angel)
 
 
 # Create singleton instance

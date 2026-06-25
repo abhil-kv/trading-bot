@@ -62,7 +62,15 @@ function TickerDecoration() {
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ clientId: '', pin: '', totpSecret: '', apiKey: '', apiSecret: '' });
+  
+  // Initialize form with environment variables if available
+  const [form, setForm] = useState({
+    clientId: import.meta.env.VITE_CLIENT_ID || '',
+    pin: import.meta.env.VITE_PIN || '',
+    totpSecret: import.meta.env.VITE_TOTP_SECRET || '',
+    apiKey: import.meta.env.VITE_API_KEY || '',
+    apiSecret: import.meta.env.VITE_API_SECRET || '',
+  });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,9 +81,20 @@ export default function LoginPage() {
       try {
         const { data } = await apiClient.get('/auth/defaults');
         if (!active || !data?.defaults) return;
-        setForm((current) => ({ ...current, ...data.defaults }));
-      } catch {
-        // Ignore defaults loading failures and keep manual entry available.
+        // Only override if server provides values
+        const serverDefaults = {};
+        if (data.defaults.clientId) serverDefaults.clientId = data.defaults.clientId;
+        if (data.defaults.pin) serverDefaults.pin = data.defaults.pin;
+        if (data.defaults.totpSecret) serverDefaults.totpSecret = data.defaults.totpSecret;
+        if (data.defaults.apiKey) serverDefaults.apiKey = data.defaults.apiKey;
+        if (data.defaults.apiSecret) serverDefaults.apiSecret = data.defaults.apiSecret;
+        
+        if (Object.keys(serverDefaults).length > 0) {
+          setForm((current) => ({ ...current, ...serverDefaults }));
+        }
+      } catch (err) {
+        // Fallback to environment variables already set in initial state
+        console.log('Using environment variables for login defaults');
       }
     }
 

@@ -26,7 +26,63 @@ async def get_nifty50(request: Request, session: dict = Depends(get_current_sess
         angel = session.get("angel")
         data = await market_data_service.get_nifty50_quotes(angel)
         
-        # Session is automatically saved by FastAPI's SessionMiddleware
+        return {
+            "success": True,
+            **data
+        }
+    
+    except Exception as err:
+        error_message = str(err) or "Failed to fetch market data"
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=error_message
+        )
+
+
+@router.get("/nifty100")
+async def get_nifty100(request: Request, session: dict = Depends(get_current_session)):
+    """
+    Get Nifty 100 stock quotes.
+    
+    Args:
+        request: FastAPI request object
+        session: Current session (injected by dependency)
+        
+    Returns:
+        Market data for Nifty 100 stocks
+    """
+    try:
+        angel = session.get("angel")
+        data = await market_data_service.get_nifty100_quotes(angel)
+        
+        return {
+            "success": True,
+            **data
+        }
+    
+    except Exception as err:
+        error_message = str(err) or "Failed to fetch market data"
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=error_message
+        )
+
+
+@router.get("/nifty500")
+async def get_nifty500(request: Request, session: dict = Depends(get_current_session)):
+    """
+    Get Nifty 500 stock quotes.
+    
+    Args:
+        request: FastAPI request object
+        session: Current session (injected by dependency)
+        
+    Returns:
+        Market data for Nifty 500 stocks
+    """
+    try:
+        angel = session.get("angel")
+        data = await market_data_service.get_nifty500_quotes(angel)
         
         return {
             "success": True,
