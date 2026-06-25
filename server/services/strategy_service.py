@@ -125,14 +125,14 @@ def analyze_strong_mean_reversion(candles: List[Dict], current_price: float, vol
     Buy Condition:
     - RSI(14) < 30
     - Close <= Lower Bollinger Band
-    - Volume > 1.5 × Average Volume(20)
+    - Volume > 1.2 × Average Volume(20)
     - Close > Open (Green candle)
     - Price > EMA200
     
     Sell Condition:
     - RSI(14) > 70
     - Close >= Upper Bollinger Band
-    - Volume > 1.5 × Average Volume(20)
+    - Volume > 1.2 × Average Volume(20)
     - Close < Open (Red candle)
     - Price < EMA200
     
@@ -167,8 +167,8 @@ def analyze_strong_mean_reversion(candles: List[Dict], current_price: float, vol
     is_green_candle = last_close > last_open
     is_red_candle = last_close < last_open
     
-    # Check volume spike
-    volume_spike = volume > (avg_volume * 1.5)
+    # Check volume spike (1.2x average)
+    volume_spike = volume > (avg_volume * 1.2)
     
     # BUY Signal
     if (rsi < 30 and 

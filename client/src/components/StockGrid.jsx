@@ -13,9 +13,8 @@ const COLUMNS = [
   { key: 'ltp', label: 'LTP', sortKey: 'ltp', align: 'right' },
   { key: 'change', label: 'Gain / Loss', sortKey: 'change', align: 'right' },
   { key: 'changePercent', label: 'Chg %', sortKey: 'changePercent', align: 'right' },
-  { key: 'orb_high', label: '15m Upper', sortKey: 'orb_high', align: 'right' },
-  { key: 'orb_low', label: '15m Lower', sortKey: 'orb_low', align: 'right' },
-  { key: 'orb_signal', label: '15m Range', align: 'center' },
+  { key: 'orb_range', label: '15M Range', sortKey: 'orb_high', align: 'center' },
+  { key: 'orb_signal', label: 'Breakout', align: 'center' },
   { key: 'range', label: '52W range', align: 'left' },
   { key: 'low52', label: '52W Low', sortKey: 'low52', align: 'right' },
   { key: 'high52', label: '52W High', sortKey: 'high52', align: 'right' },
@@ -53,6 +52,20 @@ function RangeBar({ low, high, ltp }) {
   );
 }
 
+function ORBRangeDisplay({ orbHigh, orbLow }) {
+  if (!orbHigh || !orbLow) {
+    return <span className="mono text-faint">—</span>;
+  }
+  
+  return (
+    <div className="orb-range-display">
+      <div className="orb-range-value">{formatNumber(orbHigh)}</div>
+      <div className="orb-range-separator">/</div>
+      <div className="orb-range-value">{formatNumber(orbLow)}</div>
+    </div>
+  );
+}
+
 function ORBSignalButton({ signal, breakoutTime, breakoutPrice }) {
   if (!signal) {
     return <span className="mono text-faint">—</span>;
@@ -60,13 +73,18 @@ function ORBSignalButton({ signal, breakoutTime, breakoutPrice }) {
   
   const isBuy = signal === 'BUY';
   return (
-    <button
-      className={`orb-signal-btn ${isBuy ? 'orb-signal-btn--buy' : 'orb-signal-btn--sell'}`}
-      title={`Breakout at ${breakoutPrice?.toFixed(2)} (${breakoutTime})`}
-      disabled
-    >
-      {isBuy ? '🟢 BUY' : '🔴 SELL'}
-    </button>
+    <div className="orb-signal-container">
+      <button
+        className={`orb-signal-btn ${isBuy ? 'orb-signal-btn--buy' : 'orb-signal-btn--sell'}`}
+        title={`Breakout at ${breakoutPrice?.toFixed(2)}`}
+        disabled
+      >
+        {isBuy ? '🟢 BUY' : '🔴 SELL'}
+      </button>
+      {breakoutTime && (
+        <div className="orb-breakout-time">{breakoutTime}</div>
+      )}
+    </div>
   );
 }
 
@@ -189,8 +207,9 @@ export default function StockGrid({ stocks, indexType, onIndexTypeChange }) {
                 <td className="align-right mono">
                   {s.changePercent === null ? '—' : `${s.changePercent >= 0 ? '+' : ''}${s.changePercent.toFixed(2)}%`}
                 </td>
-                <td className="align-right mono">{formatNumber(s.orb_high)}</td>
-                <td className="align-right mono">{formatNumber(s.orb_low)}</td>
+                <td className="align-center">
+                  <ORBRangeDisplay orbHigh={s.orb_high} orbLow={s.orb_low} />
+                </td>
                 <td className="align-center">
                   <ORBSignalButton
                     signal={s.orb_signal}
@@ -207,7 +226,7 @@ export default function StockGrid({ stocks, indexType, onIndexTypeChange }) {
             ))}
             {paginatedStocks.length === 0 && (
               <tr>
-                <td colSpan={11} className="empty-state">
+                <td colSpan={10} className="empty-state">
                   {sorted.length === 0 ? `No stocks match "${query}".` : 'No stocks on this page.'}
                 </td>
               </tr>

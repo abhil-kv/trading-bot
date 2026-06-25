@@ -1,115 +1,69 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/client.js';
-import StockGrid from '../components/StockGrid.jsx';
-import ConnectionStatus from '../components/ConnectionStatus.jsx';
-import { useWebSocket } from '../hooks/useWebSocket.js';
+import { Link } from 'react-router-dom';
 import './HomePage.css';
 
-function formatTime(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
 export default function HomePage() {
-  const navigate = useNavigate();
-  const [stocks, setStocks] = useState([]);
-  const [asOf, setAsOf] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [warnings, setWarnings] = useState([]);
-  const [indexType, setIndexType] = useState('50'); // '50', '100', or '500'
-  
-  // WebSocket connection
-  const { isConnected, lastMessage } = useWebSocket();
-
-  // Initial fetch on mount (fallback if WebSocket is not connected)
-  const fetchQuotes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const endpoint = indexType === '50' ? '/market/nifty50' :
-                       indexType === '100' ? '/market/nifty100' :
-                       '/market/nifty500';
-      const { data } = await apiClient.get(endpoint);
-      setStocks(data.stocks || []);
-      setAsOf(data.asOf);
-      const w = [];
-      if (data.unresolvedSymbols?.length) w.push(`Could not resolve tokens for: ${data.unresolvedSymbols.join(', ')}`);
-      if (data.unfetched?.length) w.push(`${data.unfetched.length} symbol(s) returned no data from Angel One.`);
-      setWarnings(w);
-      setError('');
-    } catch (err) {
-      if (err.response?.status === 401) {
-        navigate('/login', { replace: true });
-        return;
-      }
-      setError(err.response?.data?.message || 'Could not load market data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate, indexType]);
-
-  // Initial fetch on mount and when index type changes
-  useEffect(() => {
-    fetchQuotes();
-  }, [fetchQuotes]);
-
-  // Handle WebSocket messages
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    if (lastMessage.type === 'market_update') {
-      const data = lastMessage.data;
-      setStocks(data.stocks || []);
-      setAsOf(data.asOf);
-      const w = [];
-      if (data.unresolvedSymbols?.length) w.push(`Could not resolve tokens for: ${data.unresolvedSymbols.join(', ')}`);
-      if (data.unfetched?.length) w.push(`${data.unfetched.length} symbol(s) returned no data from Angel One.`);
-      setWarnings(w);
-      setError('');
-      setLoading(false);
-    } else if (lastMessage.type === 'error') {
-      setError(lastMessage.message || 'WebSocket error occurred');
-    }
-  }, [lastMessage]);
-
-  const gainers = stocks.filter((s) => (s.change ?? 0) >= 0).length;
-  const losers = stocks.length - gainers;
-
-  const indexName = indexType === '50' ? 'NIFTY 50' :
-                    indexType === '100' ? 'NIFTY 100' :
-                    'NIFTY 500';
-
   return (
     <div className="home-page">
       <div className="home-page__header">
         <div>
-          <h1>{indexName}</h1>
-          <p className="home-page__sub">Live snapshot from Angel One SmartAPI</p>
-        </div>
-        <div className="home-page__meta">
-          <div className="home-page__summary">
-            <span className="text-gain mono">{gainers} up</span>
-            <span className="text-loss mono">{losers} down</span>
-          </div>
-          <div className="home-page__refresh">
-            <span className="mono">Updated {formatTime(asOf)}</span>
-            <ConnectionStatus isConnected={isConnected} />
-          </div>
+          <h1>Trading Bot Dashboard</h1>
+          <p className="home-page__sub">Automated trading strategies powered by Angel One SmartAPI</p>
         </div>
       </div>
 
-      {error && <div className="home-page__error">{error}</div>}
-      {!error && warnings.map((w) => (
-        <div className="home-page__warning" key={w}>{w}</div>
-      ))}
+      <div className="home-page__content">
+        <div className="strategy-cards">
+          <Link to="/strategies" className="strategy-card">
+            <div className="strategy-card__icon">📊</div>
+            <h3>ORB 15 Min</h3>
+            <p>Opening Range Breakout strategy tracking first 15-minute range (9:15-9:30 AM) with live breakout signals</p>
+            <span className="strategy-card__link">View Strategy →</span>
+          </Link>
 
-      {loading && stocks.length === 0 ? (
-        <div className="home-page__loading">Fetching live quotes…</div>
-      ) : (
-        <StockGrid stocks={stocks} indexType={indexType} onIndexTypeChange={setIndexType} />
-      )}
+          <Link to="/strategies" className="strategy-card">
+            <div className="strategy-card__icon">📈</div>
+            <h3>Strong Mean Reversion</h3>
+            <p>5-minute timeframe strategy using RSI, Bollinger Bands, and volume analysis for mean reversion trades</p>
+            <span className="strategy-card__link">View Strategy →</span>
+          </Link>
+
+          <Link to="/strategies" className="strategy-card">
+            <div className="strategy-card__icon">🚀</div>
+            <h3>Swing Trading</h3>
+            <p>Multi-day momentum strategy targeting stocks near 52-week highs with strong volume confirmation</p>
+            <span className="strategy-card__link">View Strategy →</span>
+          </Link>
+        </div>
+
+        <div className="home-page__info">
+          <h2>Quick Start</h2>
+          <ol>
+            <li>Navigate to <strong>Strategies</strong> to view available trading strategies</li>
+            <li>Select a strategy to see live signals and analysis</li>
+            <li>Each strategy includes entry/exit rules, risk management, and performance tracking</li>
+            <li>Check <strong>News</strong> for market updates and events</li>
+          </ol>
+        </div>
+
+        <div className="home-page__features">
+          <div className="feature-box">
+            <h3>🔴 Live Market Data</h3>
+            <p>Real-time quotes from Angel One SmartAPI with WebSocket updates</p>
+          </div>
+          <div className="feature-box">
+            <h3>📊 Technical Analysis</h3>
+            <p>Advanced indicators including RSI, Bollinger Bands, EMA, and volume analysis</p>
+          </div>
+          <div className="feature-box">
+            <h3>⚡ Automated Signals</h3>
+            <p>Automatic signal generation based on predefined strategy rules</p>
+          </div>
+          <div className="feature-box">
+            <h3>📈 Performance Tracking</h3>
+            <p>Track strategy performance with detailed metrics and analytics</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

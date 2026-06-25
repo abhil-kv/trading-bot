@@ -1,3 +1,37 @@
+/* ORB Range Display */
+.orb-range-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.orb-range-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.orb-range-separator {
+  color: var(--text-faint);
+  font-weight: 300;
+}
+
+/* ORB Signal Container */
+.orb-signal-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.orb-breakout-time {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
 .stock-grid__toolbar {
   display: flex;
   align-items: center;

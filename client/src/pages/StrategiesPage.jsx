@@ -1,8 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import StockGrid from '../components/StockGrid.jsx';
+import ConnectionStatus from '../components/ConnectionStatus.jsx';
+import { useWebSocket } from '../hooks/useWebSocket.js';
+import apiClient from '../api/client.js';
 import './StrategiesPage.css';
 
 const STRATEGIES = {
   stocks: [
+    { id: 'orb-15min', name: 'ORB 15 Min' },
     { id: 'strong-mean-reversion', name: 'Strong Mean Reversion' },
     { id: 'swing', name: 'Swing' },
   ],
@@ -377,6 +383,98 @@ function SwingStrategy() {
   );
 }
 
+function ORB15MinStrategy() {
+  const navigate = useNavigate();
+  const [stocks, setStocks] = useState([]);
+  const [asOf, setAsOf] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [warnings, setWarnings] = useState([]);
+  const [indexType, setIndexType] = useState('50'); // '50', '100', or '500'
+  
+  // WebSocket connection
+  const { isConnected, lastMessage } = useWebSocket();
+
+  // Initial fetch on mount (fallback if WebSocket is not connected)
+  const fetchQuotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const endpoint = indexType === '50' ? '/market/nifty50' :
+                       indexType === '100' ? '/market/nifty100' :
+                       '/market/nifty500';
+      const { data } = await apiClient.get(endpoint);
+      setStocks(data.stocks || []);
+      setAsOf(data.asOf);
+      const w = [];
+      if (data.unresolvedSymbols?.length) w.push(`Could not resolve tokens for: ${data.unresolvedSymbols.join(', ')}`);
+      if (data.unfetched?.length) w.push(`${data.unfetched.length} symbol(s) returned no data from Angel One.`);
+      setWarnings(w);
+      setError('');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      setError(err.response?.data?.message || 'Could not load market data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate, indexType]);
+
+  // Initial fetch on mount and when index type changes
+  useEffect(() => {
+    fetchQuotes();
+  }, [fetchQuotes]);
+
+  // Handle WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    if (lastMessage.type === 'market_update') {
+      const data = lastMessage.data;
+      setStocks(data.stocks || []);
+      setAsOf(data.asOf);
+      const w = [];
+      if (data.unresolvedSymbols?.length) w.push(`Could not resolve tokens for: ${data.unresolvedSymbols.join(', ')}`);
+      if (data.unfetched?.length) w.push(`${data.unfetched.length} symbol(s) returned no data from Angel One.`);
+      setWarnings(w);
+      setError('');
+      setLoading(false);
+    } else if (lastMessage.type === 'error') {
+      setError(lastMessage.message || 'WebSocket error occurred');
+    }
+  }, [lastMessage]);
+
+  const indexName = indexType === '50' ? 'NIFTY 50' :
+                    indexType === '100' ? 'NIFTY 100' :
+                    'NIFTY 500';
+
+  return (
+    <div className="strategy-table-container">
+      <div className="strategy-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h3>Opening Range Breakout (ORB) - 15 Minute</h3>
+          <ConnectionStatus isConnected={isConnected} />
+        </div>
+        <p className="strategy-description">
+          First 15-minute range (9:15-9:30 AM) • Breakout signals • Live market data from {indexName}
+        </p>
+      </div>
+
+      {error && <div className="strategy-error">{error}</div>}
+      {!error && warnings.map((w) => (
+        <div className="strategy-warning" key={w}>{w}</div>
+      ))}
+
+      {loading && stocks.length === 0 ? (
+        <div className="strategy-loading">Fetching live quotes for ORB analysis...</div>
+      ) : (
+        <StockGrid stocks={stocks} indexType={indexType} onIndexTypeChange={setIndexType} />
+      )}
+    </div>
+  );
+}
+
 export default function StrategiesPage() {
   const [activeTab, setActiveTab] = useState('stocks');
   const [selectedStrategy, setSelectedStrategy] = useState('');
@@ -432,7 +530,9 @@ export default function StrategiesPage() {
       <div className="strategies-content">
         {activeTab === 'stocks' ? (
           <div className="strategies-section">
-            {selectedStrategy === 'strong-mean-reversion' ? (
+            {selectedStrategy === 'orb-15min' ? (
+              <ORB15MinStrategy />
+            ) : selectedStrategy === 'strong-mean-reversion' ? (
               <StrongMeanReversionStrategy />
             ) : selectedStrategy === 'swing' ? (
               <SwingStrategy />

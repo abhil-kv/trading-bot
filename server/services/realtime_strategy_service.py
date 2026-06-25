@@ -209,10 +209,15 @@ class StrongMeanReversionStrategy:
                 
                 # Get candles and analyze
                 candles = self.candle_builder.get_candles(symbol, 250)
-                if len(candles) >= 200:
+                # Reduced threshold: need at least 50 candles (about 4 hours of data)
+                # This allows faster signal generation while still having enough data
+                if len(candles) >= 50:
                     signal = self._analyze_stock(symbol, stock, candles)
                     if signal:
                         self._add_signal(signal)
+                elif len(candles) > 0 and len(candles) % 10 == 0:
+                    # Log progress every 10 candles
+                    print(f"Building candles for {symbol}: {len(candles)}/50 candles collected")
         
         except Exception as e:
             print(f"Error updating market data: {e}")
@@ -223,10 +228,14 @@ class StrongMeanReversionStrategy:
             # Calculate indicators
             rsi = TechnicalIndicators.calculate_rsi(candles)
             bb = TechnicalIndicators.calculate_bollinger_bands(candles)
-            ema200 = TechnicalIndicators.calculate_ema(candles, 200)
+            
+            # Use EMA50 if we don't have enough data for EMA200
+            ema_period = 200 if len(candles) >= 200 else 50
+            ema = TechnicalIndicators.calculate_ema(candles, ema_period)
+            
             avg_volume = TechnicalIndicators.calculate_avg_volume(candles)
             
-            if not all([rsi, bb, ema200, avg_volume]):
+            if not all([rsi, bb, ema, avg_volume]):
                 return None
             
             current_price = stock['ltp']
@@ -241,11 +250,12 @@ class StrongMeanReversionStrategy:
             volume_spike = current_volume > (avg_volume * 1.2)
             
             # BUY Signal
-            if (rsi < 30 and 
-                current_price <= bb['lower'] and 
-                volume_spike and 
-                is_green_candle and 
-                current_price > ema200):
+            # RSI < 30, Close <= Lower BB, Volume > 1.2x Avg, Green Candle, Price > EMA200
+            if (rsi < 30 and
+                current_price <= bb['lower'] and
+                volume_spike and
+                is_green_candle and
+                current_price > ema):
                 
                 # Calculate stop loss (previous swing low)
                 recent_lows = [c['low'] for c in candles[-20:]]
@@ -270,14 +280,17 @@ class StrongMeanReversionStrategy:
                     'bb_lower': bb['lower'],
                     'bb_middle': bb['middle'],
                     'bb_upper': bb['upper'],
+                    'ema': ema,
+                    'ema_period': ema_period,
                 }
             
             # SELL Signal
-            elif (rsi > 70 and 
-                  current_price >= bb['upper'] and 
-                  volume_spike and 
-                  is_red_candle and 
-                  current_price < ema200):
+            # RSI > 70, Close >= Upper BB, Volume > 1.2x Avg, Red Candle, Price < EMA200
+            elif (rsi > 70 and
+                  current_price >= bb['upper'] and
+                  volume_spike and
+                  is_red_candle and
+                  current_price < ema):
                 
                 # Calculate stop loss (previous swing high)
                 recent_highs = [c['high'] for c in candles[-20:]]
@@ -302,6 +315,8 @@ class StrongMeanReversionStrategy:
                     'bb_lower': bb['lower'],
                     'bb_middle': bb['middle'],
                     'bb_upper': bb['upper'],
+                    'ema': ema,
+                    'ema_period': ema_period,
                 }
             
             return None
@@ -383,6 +398,19 @@ async def get_realtime_signals(session_angel: Dict, index: str = "nifty500") -> 
         # Get current signals
         signals = strategy.get_signals()
         
+        # Get candle building status
+        candle_status = []
+        for stock in stocks[:10]:  # Show status for first 10 stocks
+            symbol = stock.get('symbol')
+            if symbol:
+                candles = strategy.candle_builder.get_candles(symbol, 250)
+                if len(candles) > 0:
+                    candle_status.append({
+                        'symbol': symbol,
+                        'candles': len(candles),
+                        'ready': len(candles) >= 50
+                    })
+        
         return {
             'signals': signals,
             'analyzedAt': datetime.utcnow().isoformat() + "Z",
@@ -390,7 +418,8 @@ async def get_realtime_signals(session_angel: Dict, index: str = "nifty500") -> 
             'signalsFound': len(signals),
             'mode': 'real-time',
             'index': index,
-            'note': f'Analyzing live market data with 5-minute candles for {index.upper()}'
+            'candleStatus': candle_status,
+            'note': f'Building 5-minute candles from live data. Need 50+ candles per stock for analysis. Status shown for first 10 stocks.'
         }
     
     except Exception as e:

@@ -3,6 +3,7 @@ Market Data Service
 Handles fetching and caching of market quotes from Angel One
 """
 import httpx
+import asyncio
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 
@@ -153,6 +154,7 @@ def shape_row(meta: Dict, raw: Dict) -> Dict:
         stock_data["orb_breakout_time"] = orb_data.get("breakout_time")
         stock_data["orb_breakout_price"] = orb_data.get("breakout_price")
     else:
+        # No ORB data yet - will be populated by background task
         stock_data["orb_high"] = None
         stock_data["orb_low"] = None
         stock_data["orb_signal"] = None
@@ -229,7 +231,48 @@ async def get_quotes_for_stocks(session_angel: Dict, stock_list: List[Dict], cac
     _cache[cache_entry_key] = payload
     _cache[cache_time_key] = datetime.now()
     
+    # Fetch historical ORB data in background for all stocks
+    import asyncio
+    asyncio.create_task(_fetch_historical_orb_for_stocks(session_angel, resolvable, token_map))
+    
     return payload
+
+
+async def _fetch_historical_orb_for_stocks(session_angel: Dict, stocks: List[Dict], token_map: Dict):
+    """Background task to fetch historical first 15-min candle for all stocks"""
+    try:
+        api_key = session_angel.get("apiKey")
+        jwt_token = session_angel.get("jwtToken")
+        
+        if not api_key or not jwt_token:
+            return
+        
+        # Fetch for all stocks with proper rate limiting
+        for i, stock in enumerate(stocks):
+            symbol = stock["symbol"]
+            token_info = token_map.get(symbol)
+            if token_info:
+                try:
+                    await orb_service.fetch_and_set_historical_orb(
+                        symbol=symbol,
+                        symbol_token=token_info['token'],
+                        exchange="NSE",
+                        api_key=api_key,
+                        jwt_token=jwt_token
+                    )
+                    # Delay to avoid rate limiting (0.2s = 5 requests/second)
+                    await asyncio.sleep(0.2)
+                    
+                    # Log progress every 50 stocks
+                    if (i + 1) % 50 == 0:
+                        print(f"Fetched ORB data for {i + 1}/{len(stocks)} stocks")
+                except Exception as e:
+                    print(f"Error fetching ORB for {symbol}: {e}")
+                    continue
+        
+        print(f"Completed fetching ORB data for {len(stocks)} stocks")
+    except Exception as e:
+        print(f"Error in ORB background task: {e}")
 
 
 async def get_nifty50_quotes(session_angel: Dict) -> Dict:
