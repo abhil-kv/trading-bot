@@ -445,13 +445,21 @@ class ExpiryOptionsService:
 
     async def tick(self, instrument: str, angel: Optional[Dict] = None) -> Dict:
         """
-        Update prices for all open legs:
-          • Paper mode  → simulate random-walk price
-          • Live mode   → call Angel One quote API for real LTPs
+        Fetch real Angel One LTPs for every open leg (when session is available),
+        update currentPrice, recalculate P&L, and check SL / TGT.
+
+        Price source priority (same for paper AND live mode):
+          1. Angel One Quote API  — when angel session present AND leg has token
+          2. Last known price     — when Angel One call fails (keeps price stable)
+          3. Simulated tick       — only when no angel session at all (pure paper)
+
+        paper_mode flag controls ORDER PLACEMENT only:
+          paper=True  → real prices from Angel One, NO real orders
+          paper=False → real prices from Angel One, real orders (order stub)
 
         Also handles:
-          • 10:30 auto-entry when status == SCHEDULED
-          • 14:55 force-exit
+          • 10:30 AM auto-entry if status == SCHEDULED
+          • 14:55 PM force-exit of all open legs
         """
         from services.angel_option_service import fetch_option_ltps
 
@@ -467,30 +475,42 @@ class ExpiryOptionsService:
         if st.status != "RUNNING":
             return st.to_dict()
 
-        # ── fetch live prices ─────────────────────────────────────────────────
+        # ── fetch live LTPs from Angel One ────────────────────────────────────
+        # Always attempt this when we have a session + resolved tokens.
+        # paper_mode does NOT prevent Angel One price fetching — it only means
+        # "don't place real orders".
         ltp_map: Dict[str, float] = {}
+        has_session = bool(angel and angel.get("jwtToken") and angel.get("apiKey"))
 
-        if not st.paper_mode:
-            # Live mode: Angel One quote API
-            open_legs = [l for l in st.legs if l["status"] == "OPEN" and l.get("angelToken")]
-            if open_legs and angel and angel.get("jwtToken"):
+        if has_session:
+            open_legs_with_token = [
+                l for l in st.legs
+                if l["status"] == "OPEN" and l.get("angelToken")
+            ]
+            if open_legs_with_token:
                 try:
-                    ltp_map = await fetch_option_ltps(angel, open_legs)
+                    ltp_map = await fetch_option_ltps(angel, open_legs_with_token)
                 except Exception as exc:
                     with st._lock:
-                        st._log("WARN", f"Angel One quote error: {exc} — using last price")
+                        st._log("WARN", f"Angel One LTP fetch error: {exc} — holding last price")
 
         with st._lock:
             for leg in st.legs:
                 if leg["status"] != "OPEN":
                     continue
 
-                if st.paper_mode:
-                    # Use tradingSymbol as stable key for sim state
+                token = leg.get("angelToken", "")
+
+                if token and token in ltp_map:
+                    # Best case: real Angel One LTP received
+                    new_price = ltp_map[token]
+                elif not has_session:
+                    # No session at all → simulate (pure paper mode, offline)
                     new_price = simulate_tick(leg["tradingSymbol"], leg["entryPrice"])
                 else:
-                    token     = leg.get("angelToken", "")
-                    new_price = ltp_map.get(token, leg["currentPrice"])
+                    # Session present but this token wasn't returned (unfetched/error)
+                    # Keep last known price — do NOT simulate
+                    new_price = leg["currentPrice"]
 
                 closed = update_leg_price(leg, new_price)
                 if closed:

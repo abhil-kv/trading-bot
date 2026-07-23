@@ -187,7 +187,7 @@ function Blueprint() {
           ['Entry Time', '10:30 AM'],
           ['Force Exit', '14:55 PM'],
           ['Lots / Leg', '10'],
-          ['Price Source', 'NSE chain (entry) → Angel One API (monitoring)'],
+          ['Price Source', 'NSE chain (entry once) → Angel One NFO Quote API (every tick)'],
         ].map(([k, v]) => (
           <span key={k} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ fontWeight: 600, color: 'var(--text-dim)' }}>{k}</span>
@@ -320,8 +320,11 @@ function PositionsTable({ legs, paper }) {
           animation: 'eopulse 1.5s ease-in-out infinite',
         }} />
         {paper
-          ? 'PAPER MODE — prices are simulated (random walk from NSE entry price)'
-          : 'LIVE MODE — prices fetched from Angel One Quote API (NFO exchange) every 3 s'}
+          ? 'PAPER MODE — real Angel One LTPs (NFO) used for price tracking · no real orders placed'
+          : 'LIVE MODE — real Angel One LTPs (NFO) · prices update every 3 s'}
+        <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--text-dim)', fontSize: 10 }}>
+          Prices: Angel One Quote API · Exchange: NFO · Fallback: last known LTP (if fetch fails)
+        </span>
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
@@ -736,7 +739,7 @@ export default function ExpiryOptionsStrategy() {
             4-leg strangle · SELL ~₹20 strikes · BUY ~₹5 strikes · Auto-entry 10:30 AM · Force-exit 14:55 PM
           </p>
           <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0', fontFamily: 'var(--font-mono)' }}>
-            Strikes selected from NSE option chain (once at entry) · Prices monitored via Angel One API (NFO)
+            Strikes selected from NSE option chain (once at entry) · LTPs polled from Angel One NFO Quote API every 3 s · Simulation fallback when not logged in
           </p>
         </div>
 
