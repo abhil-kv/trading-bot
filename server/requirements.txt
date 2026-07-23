@@ -1,21 +1,25 @@
-# FastAPI and server (Python 3.12 compatible with Pydantic v2)
+# FastAPI and server
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 
 # WebSocket support
-websockets==12.0
+websockets==14.2
 
-# HTTP client
-httpx==0.27.2
+# HTTP client (NSE API calls)
+httpx==0.28.1
 
-# Pydantic v2 (Python 3.12 compatible)
+# Brotli decompression (NSE sends br-encoded responses)
+brotli==1.2.0
+
+# Pydantic v2
 pydantic==2.10.5
 
 # Session and security
 itsdangerous==2.2.0
+starlette==0.41.3
 
 # Environment variables
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 
 # TOTP authentication
 pyotp==2.9.0
@@ -24,4 +28,4 @@ pyotp==2.9.0
 beautifulsoup4==4.12.3
 
 # Additional
-python-multipart==0.0.6
+python-multipart==0.0.20

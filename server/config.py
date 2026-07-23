@@ -16,6 +16,9 @@ class Settings:
     # Server Configuration
     PORT: int = int(os.getenv("PORT", "4000"))
     DEVELOPMENT_MODE: str = os.getenv("DEVELOPMENT_MODE", "development")
+
+    # Trading mode: "test" → paper trading (no real orders); "live" → live orders
+    TRADING_MODE: str = os.getenv("TRADING_MODE", "test")
     
     # Client Configuration
     CLIENT_ORIGIN: Optional[str] = os.getenv("CLIENT_ORIGIN", "http://localhost:5173")
@@ -51,6 +54,11 @@ class Settings:
     def is_development(self) -> bool:
         """Check if running in development mode"""
         return self.DEVELOPMENT_MODE == "development"
+
+    @property
+    def is_test_mode(self) -> bool:
+        """True when TRADING_MODE=test → paper trading, no real orders placed"""
+        return self.TRADING_MODE.lower() == "test"
     
     @property
     def default_login(self) -> dict:

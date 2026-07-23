@@ -4,6 +4,7 @@ import StockGrid from '../components/StockGrid.jsx';
 import ConnectionStatus from '../components/ConnectionStatus.jsx';
 import { useWebSocket } from '../hooks/useWebSocket.js';
 import apiClient from '../api/client.js';
+import ExpiryOptionsStrategy from './ExpiryOptionsStrategy.jsx';
 import './StrategiesPage.css';
 
 const STRATEGIES = {
@@ -12,7 +13,9 @@ const STRATEGIES = {
     { id: 'strong-mean-reversion', name: 'Strong Mean Reversion' },
     { id: 'swing', name: 'Swing' },
   ],
-  options: []
+  options: [
+    { id: 'expiry-day', name: 'Expiry Day Strategy' },
+  ],
 };
 
 function StrongMeanReversionStrategy() {
@@ -542,8 +545,11 @@ export default function StrategiesPage() {
           </div>
         ) : (
           <div className="strategies-section">
-            <h2>Options Strategies</h2>
-            <p className="strategies-placeholder">Options trading strategies will be available soon.</p>
+            {selectedStrategy === 'expiry-day' ? (
+              <ExpiryOptionsStrategy />
+            ) : (
+              <p className="strategies-placeholder">Select an options strategy to begin.</p>
+            )}
           </div>
         )}
       </div>
