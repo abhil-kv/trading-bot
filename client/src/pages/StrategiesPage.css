@@ -321,6 +321,7 @@
 
 .signal-row.SELL {
   background: rgba(239, 68, 68, 0.05);
+}
 
 .volume-cell {
   font-family: 'Courier New', monospace;
@@ -847,3 +848,286 @@
 .eo-ev-manual_exit .eo-log-ev{ color: #8b5cf6; }
 
 /* Made with Bob */
+
+/* ═══════════════════════════════════════════════════════════════
+   Option Chain — open button
+   ═══════════════════════════════════════════════════════════════ */
+
+  .oc-open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent, #3b82d4);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-left: 10px;
+    transition: background 0.15s;
+  }
+  .oc-open-btn:hover {
+    background: #2563b0;
+  }
+
+/* ═══════════════════════════════════════════════════════════════
+   Option Chain — Modal overlay & shell
+   ═══════════════════════════════════════════════════════════════ */
+
+  .oc-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+  }
+
+  .oc-modal {
+    background: var(--bg, #ffffff);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+
+/* ═══════════════════════════════════════════════════════════════
+   Option Chain — Header
+   ═══════════════════════════════════════════════════════════════ */
+
+  .oc-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    background: var(--surface, #f7f8fa);
+    flex-wrap: wrap;
+  }
+
+  .oc-modal-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .oc-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text, #1f2328);
+    white-space: nowrap;
+  }
+
+  .oc-underlying {
+    font-size: 13px;
+    color: var(--text-dim, #57606a);
+  }
+
+  .oc-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .oc-ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .oc-ctrl-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim, #57606a);
+    white-space: nowrap;
+  }
+
+  .oc-index-btns {
+    display: flex;
+    gap: 4px;
+  }
+
+  .oc-index-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: var(--bg, #fff);
+    color: var(--text, #1f2328);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .oc-index-btn:hover   { background: var(--surface, #f7f8fa); }
+  .oc-index-btn.active  { background: var(--accent, #3b82d4); color: #fff; border-color: var(--accent, #3b82d4); }
+
+  .oc-expiry-select {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: var(--bg, #fff);
+    color: var(--text, #1f2328);
+    cursor: pointer;
+  }
+
+  .oc-refresh-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: var(--bg, #fff);
+    color: var(--text, #1f2328);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .oc-refresh-btn:hover:not(:disabled) { background: var(--surface, #f7f8fa); }
+  .oc-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .oc-close-btn {
+    padding: 4px 10px;
+    font-size: 16px;
+    font-weight: 700;
+    background: none;
+    border: none;
+    color: var(--text-dim, #57606a);
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1;
+    margin-left: auto;
+  }
+  .oc-close-btn:hover { color: var(--text, #1f2328); background: var(--surface, #f7f8fa); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Option Chain — Body / table
+   ═══════════════════════════════════════════════════════════════ */
+
+  .oc-modal-body {
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .oc-loading,
+  .oc-error {
+    padding: 40px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-dim, #57606a);
+  }
+  .oc-error { color: #ef4444; }
+
+  .oc-table-wrap {
+    overflow-x: auto;
+  }
+
+  .oc-legend {
+    display: flex;
+    gap: 18px;
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    background: var(--surface, #f7f8fa);
+    flex-wrap: wrap;
+  }
+  .oc-legend-itm  { color: #16a34a; }
+  .oc-legend-otm  { color: #dc2626; }
+  .oc-legend-atm  { color: #d97706; }
+
+  .oc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+
+  .oc-table thead tr {
+    background: var(--surface, #f7f8fa);
+  }
+
+  .oc-th-call,
+  .oc-th-put,
+  .oc-th-strike {
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    white-space: nowrap;
+  }
+
+  .oc-th-call   { text-align: right; color: #2563b0; background: rgba(59,130,212,0.06); }
+  .oc-th-put    { text-align: left;  color: #9333ea; background: rgba(147,51,234,0.06); }
+  .oc-th-strike { text-align: center; color: var(--text, #1f2328); min-width: 90px; }
+
+  .oc-col-iv  { min-width: 48px; }
+  .oc-col-oi  { min-width: 70px; }
+  .oc-col-ltp { min-width: 70px; }
+
+  /* Table rows */
+  .oc-table tbody tr {
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    transition: background 0.1s;
+  }
+  .oc-table tbody tr:hover { background: rgba(0,0,0,0.025); }
+
+  /* ATM row highlight */
+  .oc-tr-atm { background: rgba(217,119,6,0.08) !important; }
+  .oc-tr-atm:hover { background: rgba(217,119,6,0.13) !important; }
+
+  /* CALL side cells */
+  .oc-td-call { text-align: right; padding: 6px 10px; }
+  /* PUT side cells */
+  .oc-td-put  { text-align: left;  padding: 6px 10px; }
+  /* Strike cell */
+  .oc-td-strike {
+    text-align: center;
+    padding: 6px 10px;
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--surface, #f7f8fa);
+    white-space: nowrap;
+    position: sticky;
+    /* browsers that support it */
+  }
+
+  .oc-atm-strike {
+    color: #d97706;
+    background: rgba(217,119,6,0.10);
+  }
+
+  .oc-atm-tag {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 9px;
+    font-weight: 800;
+    background: #d97706;
+    color: #fff;
+    border-radius: 3px;
+    padding: 1px 5px;
+    vertical-align: middle;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ITM = green; OTM = red; ATM = amber */
+  .oc-itm { background: rgba(22,163,74,0.07);  color: #15803d; }
+  .oc-otm { background: rgba(220,38,38,0.05);  color: #b91c1c; }
+  .oc-atm { background: rgba(217,119,6,0.08);  color: #d97706; }
+
+  /* LTP cells — slightly bolder */
+  .oc-ltp { font-weight: 700; }

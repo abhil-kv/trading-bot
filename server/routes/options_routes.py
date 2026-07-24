@@ -10,6 +10,11 @@ from pydantic import BaseModel
 from typing import Optional
 
 from services.expiry_options_service import expiry_options_service
+from services.nse_option_chain_service import (
+    fetch_contract_info,
+    fetch_option_chain,
+    find_upcoming_expiry,
+)
 
 router = APIRouter()
 
@@ -132,5 +137,77 @@ async def reset(instrument: str):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ── option chain viewer ───────────────────────────────────────────────────────
+
+@router.get("/chain")
+async def get_option_chain(symbol: str = "NIFTY", expiry: str = None):
+    """
+    Return the full option chain for a given index (NIFTY or BANKNIFTY).
+
+    Query params:
+      symbol  — 'NIFTY' or 'BANKNIFTY' (default: 'NIFTY')
+      expiry  — 'DD-Mon-YYYY' (optional; defaults to nearest upcoming expiry)
+
+    Each row has: strike, CE{ltp,oi,iv,itm}, PE{ltp,oi,iv,itm}, underlyingValue
+    """
+    sym = symbol.upper()
+    try:
+        expiry_dates = await fetch_contract_info(sym)
+        if not expiry_dates:
+            raise HTTPException(status_code=502, detail=f"No expiry dates from NSE for {sym}")
+
+        expiry_str = expiry or find_upcoming_expiry(expiry_dates)
+        if not expiry_str:
+            raise HTTPException(status_code=502, detail=f"Could not determine upcoming expiry for {sym}")
+
+        # Validate requested expiry is in the NSE list
+        if expiry and expiry not in expiry_dates:
+            raise HTTPException(status_code=400, detail=f"Expiry '{expiry}' not in NSE expiry list for {sym}")
+
+        chain = await fetch_option_chain(sym, expiry_str)
+        if not chain:
+            raise HTTPException(status_code=502, detail=f"NSE returned empty chain for {sym} expiry {expiry_str}")
+
+        # Determine underlying spot price from the first row
+        underlying = chain[0]["underlying"] if chain else 0.0
+
+        # Group by strike — build a strike → {CE, PE} map
+        strikes_map: dict = {}
+        for row in chain:
+            s = row["strike"]
+            if s not in strikes_map:
+                strikes_map[s] = {"strike": s, "CE": None, "PE": None}
+            opt = {
+                "ltp":    row["ltp"],
+                "oi":     row["oi"],
+                "iv":     row["iv"],
+                "volume": row["volume"],
+                "bid":    row["bidPrice"],
+                "ask":    row["askPrice"],
+            }
+            # ITM for CE: strike < underlying; ITM for PE: strike > underlying
+            if row["type"] == "CE":
+                opt["itm"] = s < underlying
+                strikes_map[s]["CE"] = opt
+            else:
+                opt["itm"] = s > underlying
+                strikes_map[s]["PE"] = opt
+
+        rows = sorted(strikes_map.values(), key=lambda r: r["strike"])
+
+        return {
+            "success":         True,
+            "symbol":          sym,
+            "expiry":          expiry_str,
+            "expiryDates":     expiry_dates[:12],   # nearest 12 expiries for the dropdown
+            "underlyingValue": underlying,
+            "rows":            rows,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
 
 # Made with Bob

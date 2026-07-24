@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StockGrid from '../components/StockGrid.jsx';
 import ConnectionStatus from '../components/ConnectionStatus.jsx';
 import { useWebSocket } from '../hooks/useWebSocket.js';
 import apiClient from '../api/client.js';
 import ExpiryOptionsStrategy from './ExpiryOptionsStrategy.jsx';
+import NineSeventeenStrategy from './NineSeventeenStrategy.jsx';
 import './StrategiesPage.css';
 
 const STRATEGIES = {
@@ -14,7 +15,8 @@ const STRATEGIES = {
     { id: 'swing', name: 'Swing' },
   ],
   options: [
-    { id: 'expiry-day', name: 'Expiry Day Strategy' },
+    { id: 'expiry-day',    name: 'Expiry Day Strategy' },
+    { id: '9-17-buying',   name: '9:17 Buying Strategy' },
   ],
 };
 
@@ -478,9 +480,214 @@ function ORB15MinStrategy() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Option Chain Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+const OC_INDICES = ['NIFTY', 'BANKNIFTY'];
+
+function fmt(v, decimals = 2) {
+  if (v == null || v === 0) return '—';
+  return Number(v).toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function fmtOI(v) {
+  if (!v) return '—';
+  if (v >= 1e7) return (v / 1e7).toFixed(2) + ' Cr';
+  if (v >= 1e5) return (v / 1e5).toFixed(2) + ' L';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + ' K';
+  return String(v);
+}
+
+function OptionChainModal({ onClose }) {
+  const [symbol, setSymbol] = useState('NIFTY');
+  const [expiryDates, setExpiryDates] = useState([]);
+  const [selectedExpiry, setSelectedExpiry] = useState('');
+  const [chain, setChain] = useState(null);
+  const [underlying, setUnderlying] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const atm = useRef(null);
+
+  const fetchChain = useCallback(async (sym, exp) => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ symbol: sym });
+      if (exp) params.set('expiry', exp);
+      const res = await fetch(`http://localhost:4000/api/options/chain?${params}`, { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to fetch option chain');
+      setChain(data.rows || []);
+      setUnderlying(data.underlyingValue);
+      setExpiryDates(data.expiryDates || []);
+      if (!exp && data.expiry) setSelectedExpiry(data.expiry);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load on mount and when symbol/expiry changes
+  useEffect(() => {
+    fetchChain(symbol, selectedExpiry || '');
+  }, [symbol, selectedExpiry]);
+
+  // Scroll ATM row into view after render
+  useEffect(() => {
+    if (atm.current) {
+      atm.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [chain]);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const atmStrike = underlying
+    ? Math.round(underlying / 50) * 50
+    : null;
+
+  return (
+    <div className="oc-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="oc-modal">
+        {/* Header */}
+        <div className="oc-modal-header">
+          <div className="oc-modal-title-row">
+            <span className="oc-modal-title">Option Chain</span>
+            {underlying != null && (
+              <span className="oc-underlying">
+                {symbol} Spot: <strong>₹{fmt(underlying)}</strong>
+              </span>
+            )}
+          </div>
+          <div className="oc-controls">
+            {/* Index selector */}
+            <div className="oc-ctrl-group">
+              <label className="oc-ctrl-label">Index</label>
+              <div className="oc-index-btns">
+                {OC_INDICES.map(idx => (
+                  <button
+                    key={idx}
+                    className={`oc-index-btn ${symbol === idx ? 'active' : ''}`}
+                    onClick={() => { setSymbol(idx); setSelectedExpiry(''); setChain(null); }}
+                  >
+                    {idx}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Expiry selector */}
+            {expiryDates.length > 0 && (
+              <div className="oc-ctrl-group">
+                <label className="oc-ctrl-label">Expiry</label>
+                <select
+                  className="oc-expiry-select"
+                  value={selectedExpiry}
+                  onChange={(e) => setSelectedExpiry(e.target.value)}
+                >
+                  {expiryDates.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* Refresh */}
+            <button
+              className="oc-refresh-btn"
+              onClick={() => fetchChain(symbol, selectedExpiry)}
+              disabled={loading}
+              title="Refresh"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+          <button className="oc-close-btn" onClick={onClose} title="Close">✕</button>
+        </div>
+
+        {/* Body */}
+        <div className="oc-modal-body">
+          {error && <div className="oc-error">{error}</div>}
+          {loading && <div className="oc-loading">Loading option chain from NSE…</div>}
+
+          {!loading && !error && chain && (
+            <div className="oc-table-wrap">
+              {/* Legend */}
+              <div className="oc-legend">
+                <span className="oc-legend-itm">■ In the Money (ITM)</span>
+                <span className="oc-legend-otm">■ Out of the Money (OTM)</span>
+                <span className="oc-legend-atm">■ At the Money (ATM)</span>
+              </div>
+              <table className="oc-table">
+                <thead>
+                  <tr>
+                    {/* CALL side */}
+                    <th className="oc-th-call oc-col-iv">IV</th>
+                    <th className="oc-th-call oc-col-oi">OI</th>
+                    <th className="oc-th-call oc-col-ltp">LTP</th>
+                    {/* Strike */}
+                    <th className="oc-th-strike">STRIKE</th>
+                    {/* PUT side */}
+                    <th className="oc-th-put oc-col-ltp">LTP</th>
+                    <th className="oc-th-put oc-col-oi">OI</th>
+                    <th className="oc-th-put oc-col-iv">IV</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chain.map((row) => {
+                    const isAtm = atmStrike != null && row.strike === atmStrike;
+                    const rowRef = isAtm ? atm : null;
+                    const ceItm = row.CE?.itm;
+                    const peItm = row.PE?.itm;
+
+                    let ceClass = 'oc-otm';
+                    if (isAtm) ceClass = 'oc-atm';
+                    else if (ceItm) ceClass = 'oc-itm';
+
+                    let peClass = 'oc-otm';
+                    if (isAtm) peClass = 'oc-atm';
+                    else if (peItm) peClass = 'oc-itm';
+
+                    return (
+                      <tr key={row.strike} ref={rowRef} className={isAtm ? 'oc-tr-atm' : ''}>
+                        {/* CALL */}
+                        <td className={`oc-td-call ${ceClass}`}>{fmt(row.CE?.iv, 1)}</td>
+                        <td className={`oc-td-call ${ceClass}`}>{fmtOI(row.CE?.oi)}</td>
+                        <td className={`oc-td-call ${ceClass} oc-ltp`}>{fmt(row.CE?.ltp)}</td>
+                        {/* STRIKE */}
+                        <td className={`oc-td-strike ${isAtm ? 'oc-atm-strike' : ''}`}>
+                          {row.strike.toLocaleString('en-IN')}
+                          {isAtm && <span className="oc-atm-tag">ATM</span>}
+                        </td>
+                        {/* PUT */}
+                        <td className={`oc-td-put ${peClass} oc-ltp`}>{fmt(row.PE?.ltp)}</td>
+                        <td className={`oc-td-put ${peClass}`}>{fmtOI(row.PE?.oi)}</td>
+                        <td className={`oc-td-put ${peClass}`}>{fmt(row.PE?.iv, 1)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main StrategiesPage
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function StrategiesPage() {
   const [activeTab, setActiveTab] = useState('stocks');
   const [selectedStrategy, setSelectedStrategy] = useState('');
+  const [showOptionChain, setShowOptionChain] = useState(false);
 
   const availableStrategies = STRATEGIES[activeTab] || [];
 
@@ -491,6 +698,7 @@ export default function StrategiesPage() {
     } else {
       setSelectedStrategy('');
     }
+    setShowOptionChain(false);
   }, [activeTab]);
 
   return (
@@ -526,6 +734,17 @@ export default function StrategiesPage() {
                 </option>
               ))}
             </select>
+
+            {/* Option Chain button — visible only on the Options tab */}
+            {activeTab === 'options' && (
+              <button
+                className="oc-open-btn"
+                onClick={() => setShowOptionChain(true)}
+                title="View live NSE option chain"
+              >
+                📊 Option Chain
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -547,12 +766,18 @@ export default function StrategiesPage() {
           <div className="strategies-section">
             {selectedStrategy === 'expiry-day' ? (
               <ExpiryOptionsStrategy />
+            ) : selectedStrategy === '9-17-buying' ? (
+              <NineSeventeenStrategy />
             ) : (
               <p className="strategies-placeholder">Select an options strategy to begin.</p>
             )}
           </div>
         )}
       </div>
+
+      {showOptionChain && (
+        <OptionChainModal onClose={() => setShowOptionChain(false)} />
+      )}
     </div>
   );
 }

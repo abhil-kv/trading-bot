@@ -297,8 +297,12 @@ function PnlSummary({ strategy }) {
 function PositionsTable({ legs, paper }) {
   if (!legs?.length) return null;
 
+  const buysDone = legs
+    .filter(l => l.action === 'BUY')
+    .every(l => l.status !== 'OPEN');
+
   const headers = [
-    'Leg', 'Action', 'Type', 'NSE Symbol', 'Angel Token', 'Strike',
+    'Leg', 'Action', 'SL Gate', 'Type', 'NSE Symbol', 'Angel Token', 'Strike',
     'Entry', 'LTP', 'Stop Loss', 'Target', 'Qty', 'P&L', 'Status',
   ];
 
@@ -327,7 +331,21 @@ function PositionsTable({ legs, paper }) {
         </span>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
+      {/* sell gate notice — only in live mode and only while a SELL leg is still WAITING */}
+      {!paper && !buysDone && legs.some(l => l.action === 'SELL' && l.phase === 'WAITING') && (
+        <div style={{
+          padding: '7px 16px',
+          background: 'rgba(240,180,41,0.07)',
+          borderBottom: '1px solid var(--border)',
+          fontSize: 11, fontWeight: 600, color: '#f0b429',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span>⏳</span>
+          LIVE mode — SELL SL suspended: each SELL leg activates only after its paired BUY (same type) completes
+        </div>
+      )}
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 960 }}>
         <thead>
           <tr style={{ background: 'var(--bg)' }}>
             {headers.map(h => (
@@ -342,11 +360,12 @@ function PositionsTable({ legs, paper }) {
         </thead>
         <tbody>
           {legs.map((leg, i) => {
-            const isSell = leg.action === 'SELL';
-            const lm     = LS[leg.status] || LS.OPEN;
-            const pnl    = leg.status === 'OPEN' ? leg.unrealizedPnl : leg.realizedPnl;
-            const rowBg  = isSell ? 'rgba(255,92,92,0.03)' : 'rgba(46,204,143,0.03)';
+            const isSell   = leg.action === 'SELL';
+            const lm       = LS[leg.status] || LS.OPEN;
+            const pnl      = leg.status === 'OPEN' ? leg.unrealizedPnl : leg.realizedPnl;
+            const rowBg    = isSell ? 'rgba(255,92,92,0.03)' : 'rgba(46,204,143,0.03)';
             const hasToken = !!leg.angelToken;
+            const isWaiting = isSell && leg.phase === 'WAITING';
 
             return (
               <tr key={leg.legId} style={{
@@ -366,6 +385,30 @@ function PositionsTable({ legs, paper }) {
                     color: isSell ? '#ff5c5c' : '#2ecc8f',
                     border: `1px solid ${isSell ? 'rgba(255,92,92,0.3)' : 'rgba(46,204,143,0.3)'}`,
                   }}>{leg.action}</span>
+                </td>
+                {/* SL Gate — only meaningful for SELL legs in live mode */}
+                <td style={{ padding: '11px 12px' }}>
+                  {isSell ? (
+                    <span
+                      title={isWaiting
+                        ? `LIVE mode: SL suspended — waiting for paired BUY ${leg.optionType} to complete first`
+                        : paper
+                          ? 'PAPER mode: no gate — SL active immediately'
+                          : `SL armed — paired BUY ${leg.optionType} completed`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                        background: isWaiting ? 'rgba(240,180,41,0.12)' : 'rgba(255,92,92,0.12)',
+                        color:      isWaiting ? '#f0b429'               : '#ff5c5c',
+                        border:     `1px solid ${isWaiting ? 'rgba(240,180,41,0.3)' : 'rgba(255,92,92,0.3)'}`,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {isWaiting ? '⏳ Waiting' : paper ? '— N/A' : '✓ Armed'}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>—</span>
+                  )}
                 </td>
                 {/* Option type */}
                 <td style={{ padding: '11px 12px', fontWeight: 700, color: 'var(--text)' }}>
@@ -397,9 +440,13 @@ function PositionsTable({ legs, paper }) {
                 <td style={{ padding: '11px 12px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text)' }}>
                   {inr(leg.currentPrice)}
                 </td>
-                {/* Stop Loss */}
-                <td style={{ padding: '11px 12px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#ff5c5c' }}>
+                {/* Stop Loss — dim when gate is suspended */}
+                <td style={{ padding: '11px 12px', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                             color: isWaiting ? 'var(--text-faint)' : '#ff5c5c' }}>
                   {inr(leg.slPrice)}
+                  {isWaiting && (
+                    <span style={{ fontSize: 9, marginLeft: 4, color: 'var(--text-faint)' }}>suspended</span>
+                  )}
                 </td>
                 {/* Target */}
                 <td style={{ padding: '11px 12px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#2ecc8f' }}>
@@ -442,6 +489,7 @@ const EV_COLORS = {
   exited:      '#6b7280',
   force_exit:  '#f59e0b',
   manual_exit: '#a78bfa',
+  sell_armed:  '#f59e0b',
   warn:        '#f59e0b',
   error:       '#ff5c5c',
 };
@@ -452,35 +500,23 @@ function ActivityLog({ log }) {
 
   if (!log?.length) return null;
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-      <div style={{
-        padding: '9px 16px', background: 'var(--bg)',
-        borderBottom: '1px solid var(--border)',
-        fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.06em', color: 'var(--text-dim)',
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gain)', display: 'inline-block' }} />
-        Activity Log
-      </div>
-      <div style={{ maxHeight: 240, overflowY: 'auto', background: 'var(--bg)' }}>
-        {log.map((e, i) => {
-          const evKey  = e.event?.toLowerCase();
-          const evColor = EV_COLORS[evKey] || 'var(--text-dim)';
-          return (
-            <div key={i} style={{
-              display: 'flex', gap: 12, padding: '6px 16px',
-              borderBottom: i < log.length - 1 ? '1px solid var(--border)' : 'none',
-              fontSize: 12, fontFamily: 'var(--font-mono)', alignItems: 'flex-start',
-            }}>
-              <span style={{ color: 'var(--text-faint)', minWidth: 55, flexShrink: 0 }}>{e.time}</span>
-              <span style={{ color: evColor, fontWeight: 700, minWidth: 100, flexShrink: 0 }}>[{e.event}]</span>
-              <span style={{ color: 'var(--text)', flex: 1 }}>{e.message}</span>
-            </div>
-          );
-        })}
-        <div ref={bottomRef} />
-      </div>
+    <div style={{ maxHeight: 240, overflowY: 'auto', background: 'var(--bg)' }}>
+      {log.map((e, i) => {
+        const evKey  = e.event?.toLowerCase();
+        const evColor = EV_COLORS[evKey] || 'var(--text-dim)';
+        return (
+          <div key={i} style={{
+            display: 'flex', gap: 12, padding: '6px 16px',
+            borderBottom: i < log.length - 1 ? '1px solid var(--border)' : 'none',
+            fontSize: 12, fontFamily: 'var(--font-mono)', alignItems: 'flex-start',
+          }}>
+            <span style={{ color: 'var(--text-faint)', minWidth: 55, flexShrink: 0 }}>{e.time}</span>
+            <span style={{ color: evColor, fontWeight: 700, minWidth: 100, flexShrink: 0 }}>[{e.event}]</span>
+            <span style={{ color: 'var(--text)', flex: 1 }}>{e.message}</span>
+          </div>
+        );
+      })}
+      <div ref={bottomRef} />
     </div>
   );
 }
@@ -494,6 +530,31 @@ function SectionHeading({ children }) {
       paddingBottom: 8, borderBottom: '1px solid var(--border)',
     }}>
       {children}
+    </div>
+  );
+}
+
+function Accordion({ title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '9px 14px', background: 'var(--surface)', border: 'none', cursor: 'pointer',
+          fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
+          color: 'var(--text-dim)', fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <span>{title}</span>
+        <span style={{ fontSize: 10, transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '14px 0 2px' }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -656,10 +717,9 @@ function InstrumentPanel({ instrument }) {
       )}
 
       {/* ── blueprint ── */}
-      <div>
-        <SectionHeading>Strategy Blueprint</SectionHeading>
-        <div style={{ marginTop: 12 }}><Blueprint /></div>
-      </div>
+      <Accordion title="Strategy Blueprint">
+        <Blueprint />
+      </Accordion>
 
       {/* ── P&L cards ── */}
       {st?.legs?.length > 0 && (
@@ -680,7 +740,11 @@ function InstrumentPanel({ instrument }) {
       )}
 
       {/* ── log ── */}
-      <ActivityLog log={st?.log} />
+      {st?.log?.length > 0 && (
+        <Accordion title="Activity Log">
+          <ActivityLog log={st?.log} />
+        </Accordion>
+      )}
     </div>
   );
 }

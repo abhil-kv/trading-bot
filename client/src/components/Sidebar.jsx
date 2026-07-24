@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import './Sidebar.css';
 
@@ -10,35 +11,77 @@ const NAV_ITEMS = [
   { to: '/app/settings', label: 'Settings', icon: '⚙', enabled: false },
 ];
 
-// Mock index data - in production, this would come from WebSocket/API
-const MOCK_INDICES = [
-  { symbol: 'NIFTY', name: 'NIFTY 50', value: 24631.50, change: 145.30, changePercent: 0.59 },
-  { symbol: 'BANKNIFTY', name: 'BANK NIFTY', value: 53250.75, change: -234.50, changePercent: -0.44 },
-  { symbol: 'FINNIFTY', name: 'FIN NIFTY', value: 23456.80, change: 89.20, changePercent: 0.38 },
-  { symbol: 'SENSEX', name: 'SENSEX', value: 81347.90, change: 312.45, changePercent: 0.39 },
-];
+const API_BASE = (
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
+  'http://localhost:4000/api'
+);
 
 function IndexCard({ index }) {
-  const isGain = index.change >= 0;
+  const isVix   = index.symbol === 'INDIAVIX';
+  const isGain  = (index.change ?? 0) >= 0;
+
+  // VIX rising = fear up = use a neutral amber tint rather than green/red
+  const changeClass = isVix
+    ? (isGain ? 'is-vix-up' : 'is-vix-down')
+    : (isGain ? 'is-gain'   : 'is-loss');
+
   return (
-    <div className="index-card">
+    <div className={`index-card ${isVix ? 'index-card--vix' : ''}`}>
       <div className="index-card__header">
-        <span className="index-card__name">{index.name}</span>
-        <span className={`index-card__change ${isGain ? 'is-gain' : 'is-loss'}`}>
-          {isGain ? '+' : ''}{index.changePercent.toFixed(2)}%
+        <span className="index-card__name">{isVix ? 'INDIA VIX' : index.symbol}</span>
+        <span className={`index-card__change ${changeClass}`}>
+          {isGain ? '+' : ''}{(index.changePercent ?? 0).toFixed(2)}%
         </span>
       </div>
       <div className="index-card__body">
-        <span className="index-card__value">{index.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        <span className={`index-card__delta ${isGain ? 'is-gain' : 'is-loss'}`}>
-          {isGain ? '▲' : '▼'} {Math.abs(index.change).toFixed(2)}
+        <span className="index-card__value">
+          {index.value != null
+            ? index.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : '—'}
+        </span>
+        <span className={`index-card__delta ${changeClass}`}>
+          {isGain ? '▲' : '▼'} {Math.abs(index.change ?? 0).toFixed(2)}
         </span>
       </div>
     </div>
   );
 }
 
+function useIndices(pollMs = 15000) {
+  const [indices, setIndices] = useState([]);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchIndices() {
+      try {
+        const res = await fetch(`${API_BASE}/market/indices`, { credentials: 'include' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && json.success && Array.isArray(json.indices)) {
+          setIndices(json.indices);
+        }
+      } catch {
+        // Network error — keep showing whatever we had before
+      }
+    }
+
+    fetchIndices();
+    timerRef.current = setInterval(fetchIndices, pollMs);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timerRef.current);
+    };
+  }, [pollMs]);
+
+  return indices;
+}
+
 export default function Sidebar({ isOpen = true, isConnected = false, onToggle }) {
+  const indices = useIndices(5000);
+
   return (
     <aside className={`sidebar ${isOpen ? 'is-open' : 'is-closed'}`}>
       <div className="sidebar__brand">
@@ -93,9 +136,9 @@ export default function Sidebar({ isOpen = true, isConnected = false, onToggle }
 
       <div className="sidebar__footer">
         <div className="sidebar__indices">
-          {MOCK_INDICES.map((index) => (
-            <IndexCard key={index.symbol} index={index} />
-          ))}
+          {indices.length > 0
+            ? indices.map((index) => <IndexCard key={index.symbol} index={index} />)
+            : null}
         </div>
       </div>
     </aside>

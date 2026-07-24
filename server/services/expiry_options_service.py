@@ -12,17 +12,6 @@ Architecture:
   │  No further NSE API calls after entry.                                    │
   └───────────────────────────────────────────────────────────────────────────┘
 
-Paper mode (TRADING_MODE=test or UI toggle):
-  • NSE chain still fetched once to get REAL strikes and entry prices.
-  • Angel One scrip master token lookup still runs (needed for live switch).
-  • Price ticks are SIMULATED (random walk) — no Angel One quote API called.
-  • Used when there is no valid Angel One session.
-
-Live mode:
-  • Exactly the same entry flow.
-  • Every tick calls Angel One Quote API for live LTPs.
-  • Requires a valid Angel One session (jwtToken + apiKey).
-
 Strategy rules:
   L1  SELL PUT  ~₹20  SL = entry × 2  (100% loss — double price)
   L2  SELL CALL ~₹20  SL = entry × 2
@@ -31,6 +20,19 @@ Strategy rules:
 
   Entry:       10:30 AM (scheduled) or immediately (start-now)
   Force exit:  14:55 PM
+
+SELL execution gate (LIVE mode only):
+  Each SELL leg is paired with the BUY leg of the same option type:
+    L1 SELL PE  →  waits for  L4 BUY PE  to complete (TGT_HIT / SL_HIT / EXITED)
+    L2 SELL CE  →  waits for  L3 BUY CE  to complete
+
+  Paper mode: gate is disabled — all 4 legs run independently from the start.
+
+  Leg "phase" field:
+    "WAITING" — LIVE SELL leg whose paired BUY has not yet finished.
+                LTP is tracked and unrealizedPnl shown, but SL is NOT checked.
+    "ACTIVE"  — SL is armed: applies to all BUY legs always, and to SELL legs
+                once their paired BUY completes (or immediately in paper mode).
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ from typing import Dict, List, Optional
 # ──────────────────────────────────────────────────────────────────────────────
 
 LOT_SIZES: Dict[str, int] = {
-    "NIFTY":      25,
+    "NIFTY":      65,
     "BANKNIFTY":  15,
     "FINNIFTY":   40,
     "MIDCPNIFTY": 50,
@@ -126,6 +128,7 @@ def build_legs(chain: List[Dict], instrument: str, expiry_str: str) -> List[Dict
             "slPrice":       sl_price,
             "tgtPrice":      tgt_price,
             "status":        "OPEN",    # OPEN | SL_HIT | TGT_HIT | EXITED
+            "phase":         "ACTIVE",  # ACTIVE | WAITING — set to WAITING by _enter() in live mode
             "realizedPnl":   0.0,
             "unrealizedPnl": 0.0,
             # Filled by angel_option_service.resolve_tokens():
@@ -148,8 +151,12 @@ def _unrealized(leg: Dict) -> float:
 
 def update_leg_price(leg: Dict, new_price: float) -> bool:
     """
-    Update current price, recalculate unrealized PnL, and trigger SL / TGT.
-    Returns True when the leg just closed (so caller can log the event).
+    Update current price, recalculate unrealized P&L, and trigger SL / TGT.
+    Returns True when the leg just closed.
+
+    Caller (tick loop) is responsible for skipping this for SELL legs
+    whose phase is "WAITING" — they should only have their price updated,
+    not their SL checked.
     """
     if leg["status"] != "OPEN":
         return False
@@ -407,8 +414,19 @@ class ExpiryOptionsService:
         if unresolved:
             token_note = f" ⚠ Angel token missing for legs: {', '.join(unresolved)}"
 
-        # ── Step 3: Mark RUNNING ──────────────────────────────────────────────
+        # ── Step 3: Apply SELL gate in live mode only ─────────────────────────
+        # Each SELL leg waits for its same-type BUY leg to complete first.
+        #   L1 SELL PE  →  paired with  L4 BUY PE
+        #   L2 SELL CE  →  paired with  L3 BUY CE
+        # Paper mode: all legs are ACTIVE immediately (no gate).
+        if not paper:
+            for leg in legs:
+                if leg["action"] == "SELL":
+                    leg["phase"] = "WAITING"
+
+        # ── Step 4: Mark RUNNING ──────────────────────────────────────────────
         mode_label = "PAPER (simulated ticks)" if paper else "LIVE (Angel One quotes)"
+        gate_note  = "" if paper else " | SELL gate: active (each SELL waits for same-type BUY)"
         with st._lock:
             st.legs       = legs
             st.status     = "RUNNING"
@@ -422,10 +440,11 @@ class ExpiryOptionsService:
                     f"Expiry: {expiry_str} | "
                     f"{len(chain)} options across "
                     f"{len(set(o['strike'] for o in chain))} strikes"
-                    f"{token_note}"
+                    f"{token_note}{gate_note}"
                 ),
             )
             for l in legs:
+                gate_status = "" if l["action"] == "BUY" or paper else f" [SL gate: WAITING for BUY {l['optionType']}]"
                 st._log(
                     "OPEN",
                     (
@@ -435,6 +454,7 @@ class ExpiryOptionsService:
                         f"SL=₹{l['slPrice']:.2f}  "
                         f"TGT={'₹'+str(l['tgtPrice']) if l['tgtPrice'] else '—'}  "
                         f"token={l['angelToken'] or 'UNRESOLVED'}"
+                        f"{gate_status}"
                     ),
                     l["legId"],
                 )
@@ -495,6 +515,7 @@ class ExpiryOptionsService:
                         st._log("WARN", f"Angel One LTP fetch error: {exc} — holding last price")
 
         with st._lock:
+            # ── price update pass ─────────────────────────────────────────────
             for leg in st.legs:
                 if leg["status"] != "OPEN":
                     continue
@@ -502,15 +523,21 @@ class ExpiryOptionsService:
                 token = leg.get("angelToken", "")
 
                 if token and token in ltp_map:
-                    # Best case: real Angel One LTP received
                     new_price = ltp_map[token]
                 elif not has_session:
-                    # No session at all → simulate (pure paper mode, offline)
+                    # No session → simulate (offline / paper mode)
                     new_price = simulate_tick(leg["tradingSymbol"], leg["entryPrice"])
                 else:
-                    # Session present but this token wasn't returned (unfetched/error)
-                    # Keep last known price — do NOT simulate
+                    # Session present but token not returned — hold last price
                     new_price = leg["currentPrice"]
+
+                # WAITING SELL leg (live mode): update price/PnL display only,
+                # do NOT run SL check via update_leg_price.
+                if leg["action"] == "SELL" and leg["phase"] == "WAITING":
+                    new_price = max(round(new_price, 2), 0.05)
+                    leg["currentPrice"]  = new_price
+                    leg["unrealizedPnl"] = _unrealized(leg)
+                    continue
 
                 closed = update_leg_price(leg, new_price)
                 if closed:
@@ -524,7 +551,36 @@ class ExpiryOptionsService:
                         leg["legId"],
                     )
 
-            # Force exit at 14:55
+            # ── SELL gate check (LIVE mode only) ─────────────────────────────
+            # Each SELL leg is paired with the BUY leg of the SAME option type.
+            #   SELL PE (L1) waits for BUY PE (L4)
+            #   SELL CE (L2) waits for BUY CE (L3)
+            # Once the paired BUY is no longer OPEN the SELL is armed.
+            # In paper mode all phases start as ACTIVE so this loop is a no-op.
+            if not st.paper_mode:
+                for sell_leg in st.legs:
+                    if sell_leg["action"] != "SELL" or sell_leg["phase"] != "WAITING":
+                        continue
+                    # Find the BUY leg with the same optionType
+                    paired_buy = next(
+                        (l for l in st.legs
+                         if l["action"] == "BUY" and l["optionType"] == sell_leg["optionType"]),
+                        None,
+                    )
+                    if paired_buy and paired_buy["status"] != "OPEN":
+                        sell_leg["phase"] = "ACTIVE"
+                        st._log(
+                            "SELL_ARMED",
+                            (
+                                f"{sell_leg['legId']} SELL {sell_leg['optionType']} gate lifted — "
+                                f"paired BUY {sell_leg['optionType']} ({paired_buy['legId']}) "
+                                f"completed ({paired_buy['status']}). "
+                                f"SL now active @ ₹{sell_leg['slPrice']:.2f}"
+                            ),
+                            sell_leg["legId"],
+                        )
+
+            # ── force exit at 14:55 ───────────────────────────────────────────
             if now_time >= force_exit_time:
                 any_open = any(l["status"] == "OPEN" for l in st.legs)
                 if any_open:

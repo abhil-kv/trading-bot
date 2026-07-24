@@ -288,3 +288,24 @@
 .index-card__delta.is-loss {
   color: var(--loss);
 }
+
+/* ── India VIX card variant ────────────────────────────────────── */
+
+.index-card--vix {
+  border-color: rgba(180, 120, 0, 0.3);
+  background: rgba(217, 119, 6, 0.05);
+}
+
+.index-card--vix .index-card__name {
+  color: #b45309;
+}
+
+.index-card__change.is-vix-up,
+.index-card__delta.is-vix-up {
+  color: #d97706;
+}
+
+.index-card__change.is-vix-down,
+.index-card__delta.is-vix-down {
+  color: #65a30d;
+}
